@@ -18,6 +18,7 @@ import uuid
 import pandas as pd
 import qrcode
 import streamlit as st
+import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -232,7 +233,7 @@ def add_months(months: int) -> str:
     return date(year, month, day).strftime("%Y-%m-%d")
 
 
-def actor_get(actor: dict, key: str, default: str = "") -> str:
+def actor_get(actor: dict | None, key: str, default: str = "") -> str:
     return clean(actor.get(key, default)) if isinstance(actor, dict) else default
 
 
@@ -253,7 +254,7 @@ def logo_data_uri() -> str:
 def make_qr_data_uri(value: str) -> str:
     img = qrcode.make(value)
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -632,7 +633,7 @@ def extract_text(name: str, data: bytes) -> str:
             texts = []
             for slide in prs.slides:
                 for shape in slide.shapes:
-                    if hasattr(shape, "text"):
+                    if getattr(shape, "has_text_frame", False) and getattr(shape, "text", ""):
                         texts.append(shape.text)
             return "\n".join(texts)
     except Exception:
@@ -1420,7 +1421,7 @@ def authorization_page(actor):
     req2 = req2[req2["authorization_id"] == aid].iloc[0]
     if clean(req2["certificate_html"]):
         st.subheader("Certificate")
-        st.components.v1.html(req2["certificate_html"], height=650, scrolling=True)
+        components.html(req2["certificate_html"], height=650, scrolling=True)
         st.download_button("Download Certificate", req2["certificate_html"], file_name=f"{req2['certificate_id']}.html", mime="text/html")
 
 
