@@ -18,6 +18,7 @@ import uuid
 import pandas as pd
 import qrcode
 import streamlit as st
+import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -83,7 +84,7 @@ def days_until(date_text: str) -> int:
     except Exception:
         return 9999
 
-def actor_get(actor: dict, key: str, default: str = "") -> str:
+def actor_get(actor: dict | None, key: str, default: str = "") -> str:
     return clean(actor.get(key, default)) if isinstance(actor, dict) else default
 
 def logo_data_uri() -> str:
@@ -94,7 +95,7 @@ def logo_data_uri() -> str:
 def make_qr_data_uri(text_value: str) -> str:
     img = qrcode.make(text_value)
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 @st.cache_resource
@@ -715,7 +716,7 @@ def training_page(actor):
                 fs = db_all("files")
                 content = "\n".join(fs[(fs["linked_id"] == tid) & (fs["extracted_text"] != "")]["extracted_text"].astype(str).tolist())
                 st.session_state["mcq_content"] = content
-            content = st.text_area("MCQ Content", value=st.session_state.get("mcq_content", content), height=200)
+            content = st.text_area("MCQ Content", value=st.session_state.get("mcq_content", content) or "", height=200)
             count = st.slider("MCQs", 5, 30, 10)
             if st.button("Generate MCQs"):
                 qs = generate_mcqs(tid, content, count)
@@ -949,7 +950,7 @@ def authorization_page(actor):
     req = db_all("authorization_requests")
     req = req[req["authorization_id"] == aid].iloc[0]
     if clean(req["certificate_html"]):
-        st.components.v1.html(req["certificate_html"], height=650, scrolling=True)
+        components.html(req["certificate_html"], height=650, scrolling=True)
         st.download_button("Download Certificate HTML", req["certificate_html"], file_name=f"{req['certificate_id']}.html", mime="text/html")
 
 def job_allocation_page(actor):
