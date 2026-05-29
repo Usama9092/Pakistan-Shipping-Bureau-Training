@@ -61,6 +61,8 @@ SUPABASE_BUCKET=psb-hrdm-files
 PUBLIC_URL=https://training.psbureau.org
 ```
 
+There is also a `.env.example` file with placeholder values you can copy to `.env` for local testing.
+
 ## Important security
 
 - Never put `SUPABASE_SERVICE_ROLE_KEY` in GitHub.
