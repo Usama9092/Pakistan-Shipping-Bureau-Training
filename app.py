@@ -1091,29 +1091,52 @@ def training_page(actor):
     tr = db_all("trainings")
     tr_row = tr[tr["training_id"] == tid].iloc[0]
     if role in ["Admin","Trainer"]:
-        tabs = st.tabs(["Files & Links","MCQ","Assignment","Attendance/Records"])
+        tabs = st.tabs(["Materials","Video","Reference / Rules","MCQ","Assignment","Attendance/Records"])
         with tabs[0]:
+            st.subheader("Training Materials")
             file_upload_panel(actor, "trainings", tid, "Training Material")
             slides = st.text_input("Slides Link", tr_row["slides_link"])
-            video = st.text_input("Video Link", tr_row["video_link"])
-            ref = st.text_input("Reference Link", tr_row["reference_link"])
             scorm = st.text_input("SCORM Package Link", tr_row["scorm_package_link"])
-            sdate = st.date_input("Schedule Date")
+            schedule_date = date.fromisoformat(tr_row["schedule_date"]) if clean(tr_row["schedule_date"]) else date.today()
+            sdate = st.date_input("Schedule Date", schedule_date)
             stime = st.text_input("Schedule Time", tr_row["schedule_time"])
-            st.link_button("Open MS Teams to Create Meeting", f"https://teams.microsoft.com/l/meeting/new?subject={quote_plus(clean(tr_row['title']))}")
-            meeting = st.text_input("Final MS Teams Meeting Link", tr_row["meeting_link"])
-            recording = st.text_input("Recording Link", tr_row["recording_link"])
-            if st.button("Save Links and Schedule"):
-                db_update("trainings", "training_id", tid, {"slides_link": slides, "video_link": video, "reference_link": ref, "scorm_package_link": scorm, "schedule_date": str(sdate), "schedule_time": stime, "meeting_link": meeting, "recording_link": recording, "status": "Scheduled", "updated_on": now()})
-                st.success("Saved.")
+            if st.button("Save Materials and Schedule", key="save_materials"):
+                db_update("trainings", "training_id", tid, {"slides_link": slides, "scorm_package_link": scorm, "schedule_date": str(sdate), "schedule_time": stime, "status": "Scheduled", "updated_on": now()})
+                st.success("Materials and schedule saved.")
             f = db_all("files")
-            table(f[f["linked_id"] == tid] if not f.empty else f)
+            material_files = f[(f["linked_id"] == tid) & (f["category"] == "Training Material")] if not f.empty else pd.DataFrame()
+            table(material_files if not material_files.empty else pd.DataFrame())
         with tabs[1]:
+            st.subheader("Video and Meeting")
+            video = st.text_input("Video Link", tr_row["video_link"])
+            meeting = st.text_input("Meeting Link", tr_row["meeting_link"])
+            recording = st.text_input("Recording Link", tr_row["recording_link"])
+            if st.button("Save Video and Meeting", key="save_video"):
+                db_update("trainings", "training_id", tid, {"video_link": video, "meeting_link": meeting, "recording_link": recording, "status": "Scheduled", "updated_on": now()})
+                st.success("Video and meeting links saved.")
+            if video:
+                st.markdown(f"[Open Video]({video})")
+            if meeting:
+                st.markdown(f"[Open Meeting]({meeting})")
+            if recording:
+                st.markdown(f"[Open Recording]({recording})")
+        with tabs[2]:
+            st.subheader("Reference Documents and Rules")
+            ref = st.text_input("Reference / Rule Link", tr_row["reference_link"])
+            if st.button("Save Reference Link", key="save_reference"):
+                db_update("trainings", "training_id", tid, {"reference_link": ref, "status": "Scheduled", "updated_on": now()})
+                st.success("Reference link saved.")
+            ref_files = f[(f["linked_id"] == tid) & (f["category"] != "Training Material")] if not f.empty else pd.DataFrame()
+            if ref:
+                st.markdown(f"[Open Reference]({ref})")
+            table(ref_files if not ref_files.empty else pd.DataFrame())
+        with tabs[3]:
+            st.subheader("MCQ Generation")
             f = db_all("files")
             extracted = "\n".join(f[(f["linked_id"] == tid) & (f["extracted_text"] != "")]["extracted_text"].astype(str).tolist()) if not f.empty else ""
             content = st.text_area("MCQ Content", value=extracted, height=220)
             count = st.slider("Number of MCQs", 5, 30, 10)
-            if st.button("Generate MCQs"):
+            if st.button("Generate MCQs", key="generate_mcqs"):
                 qs = generate_mcqs(tid, content, count)
                 if qs.empty:
                     st.error("Could not generate MCQs. Add clearer text.")
@@ -1124,12 +1147,12 @@ def training_page(actor):
                     st.success(f"{len(qs)} MCQs generated.")
             q = db_all("question_bank")
             table(q[q["training_id"] == tid] if not q.empty else q)
-        with tabs[2]:
-            eligible = users[(users["status"] == "Active") & (users["role"].isin(split_list(tr_row["target_roles"])))] if not users.empty else pd.DataFrame()
-            st.caption("You can assign by role/person. Admin/Trainer may add multiple theoretical modules before witness eligibility.")
+        with tabs[4]:
+            eligible = users[(users["status"] == "Active") & (users["role"].isin(split_list(tr_row["target_roles"]))) ] if not users.empty else pd.DataFrame()
+            st.caption("Assign by role or person. Trainer may add content, schedule, and generate MCQs before assignment.")
             selected_users = st.multiselect("Assign Persons", eligible["name"].astype(str)+" — "+eligible["user_id"].astype(str))
             due = st.date_input("Due Date", date.today()+timedelta(days=30))
-            if st.button("Assign Training"):
+            if st.button("Assign Training", key="assign_training"):
                 records = db_all("training_records")
                 added = 0
                 for item in selected_users:
@@ -1148,14 +1171,14 @@ def training_page(actor):
                     create_notification(uidv, f"Training Assigned: {tr_row['title']}", f"Training due on {due}", "Training")
                     added += 1
                 st.success(f"{added} persons assigned.")
-        with tabs[3]:
+        with tabs[5]:
             rec = db_all("training_records")
             assigned = rec[rec["training_id"] == tid] if not rec.empty else pd.DataFrame()
             table(assigned)
             if not assigned.empty:
                 person = st.selectbox("Mark Attendance", assigned["name"].astype(str)+" — "+assigned["user_id"].astype(str))
                 att = st.selectbox("Attendance", ["Present", "Absent"])
-                if st.button("Save Attendance"):
+                if st.button("Save Attendance", key="save_attendance"):
                     uidv = person.split(" — ")[-1]
                     rr = assigned[assigned["user_id"] == uidv].iloc[0]
                     db_update("training_records", "record_id", rr["record_id"], {"live_attendance": att, "updated_on": now()})
@@ -1174,40 +1197,84 @@ def trainee_training(actor, tid):
         return
     row = rr.iloc[0]; tr_row = tr[tr["training_id"] == tid].iloc[0]
     metrics([("Progress", f"{row['progress']}%"), ("LMS", row["lms_completed"]), ("Test", row["test_status"]), ("Certificate", row["certificate_status"])])
-    c1,c2,c3,c4 = st.columns(4)
-    if c1.button("Mark Slides Complete"):
-        db_update("training_records","record_id",row["record_id"],{"slides_opened":"Yes"}); update_training_progress(); st.rerun()
-    if c2.button("Mark Video Complete"):
-        db_update("training_records","record_id",row["record_id"],{"video_opened":"Yes"}); update_training_progress(); st.rerun()
-    if c3.button("Mark Recording Complete"):
-        db_update("training_records","record_id",row["record_id"],{"recording_opened":"Yes","video_opened":"Yes","live_attendance":"Recording Viewed"}); update_training_progress(); st.rerun()
-    if c4.button("Mark LMS/SCORM Complete"):
-        db_update("training_records","record_id",row["record_id"],{"lms_completed":"Yes"}); update_training_progress(); st.rerun()
-    qs = qbank[qbank["training_id"] == tid] if not qbank.empty else pd.DataFrame()
-    if qs.empty:
-        st.warning("MCQs not generated.")
-        return
-    if row["test_status"] == "Passed":
-        st.success("Assessment already passed.")
-        return
-    history = db_all("assessment_history")
-    attempts = len(history[(history["user_id"] == uidv) & (history["training_id"] == tid)]) if not history.empty else 0
-    with st.form("assessment"):
-        answers = {}
-        for i, (_, q) in enumerate(qs.iterrows(), 1):
-            st.markdown(f"**Q{i}. {q['question']}**")
-            opts = [q["option_a"], q["option_b"], q["option_c"], q["option_d"]]
-            answers[q["question_id"]] = st.radio("Select", opts, key=q["question_id"], label_visibility="collapsed")
-        submit = st.form_submit_button("Submit Assessment")
-    if submit:
-        correct = sum(1 for _, q in qs.iterrows() if answers.get(q["question_id"]) == q["correct_answer"])
-        score = round(correct / len(qs) * 100, 2)
-        result = "Passed" if score >= int(tr_row["passing_marks"]) else "Failed"
-        db_insert("assessment_history", {"assessment_id": uid("ASM"), "user_id": uidv, "name": actor_get(actor,"name"), "training_id": tid, "training_title": tr_row["title"], "attempt_no": attempts+1, "score": score, "result": result, "attempted_on": now(), "next_retest_allowed": str(date.today()+timedelta(days=7)) if result=="Failed" else "", "remarks": f"Correct {correct}/{len(qs)}"})
-        db_update("training_records","record_id",row["record_id"],{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}"})
-        update_training_progress()
-        st.success(f"{result}: {score}%")
-        st.rerun()
+    tabs = st.tabs(["Materials","Video","Reference / Rules","MCQ"])
+    f = db_all("files")
+    training_files = f[f["linked_id"] == tid] if not f.empty else pd.DataFrame()
+    with tabs[0]:
+        st.subheader("Training Materials")
+        st.markdown(f"**Scheduled:** {tr_row['schedule_date']} {tr_row['schedule_time']}")
+        if tr_row["slides_link"]:
+            st.markdown(f"[Open Slides]({tr_row['slides_link']})")
+            if st.button("Mark Slides Viewed", key="mark_slides"):
+                db_update("training_records", "record_id", row["record_id"], {"slides_opened": "Yes"})
+                update_training_progress()
+                st.rerun()
+        material_files = training_files[training_files["category"] == "Training Material"] if not training_files.empty else pd.DataFrame()
+        if not material_files.empty:
+            table(material_files)
+        else:
+            st.info("No training material files uploaded.")
+    with tabs[1]:
+        st.subheader("Video and Online Training")
+        if tr_row["video_link"]:
+            st.markdown(f"[Open Video]({tr_row['video_link']})")
+            if st.button("Mark Video Viewed", key="mark_video"):
+                db_update("training_records", "record_id", row["record_id"], {"video_opened": "Yes"})
+                update_training_progress()
+                st.rerun()
+        if tr_row["meeting_link"]:
+            st.markdown(f"[Open Meeting]({tr_row['meeting_link']})")
+            if st.button("Mark Present for Online Session", key="mark_present"):
+                db_update("training_records", "record_id", row["record_id"], {"live_attendance": "Present", "video_opened": "Yes"})
+                update_training_progress()
+                st.rerun()
+        if tr_row["recording_link"]:
+            st.markdown(f"[Open Recording]({tr_row['recording_link']})")
+            if st.button("Mark Recording Viewed", key="mark_recording"):
+                db_update("training_records", "record_id", row["record_id"], {"recording_opened": "Yes", "video_opened": "Yes", "live_attendance": "Recording Viewed"})
+                update_training_progress()
+                st.rerun()
+    with tabs[2]:
+        st.subheader("Reference Documents and Rules")
+        if tr_row["reference_link"]:
+            st.markdown(f"[Open Reference]({tr_row['reference_link']})")
+            if st.button("Mark Reference Reviewed", key="mark_reference"):
+                db_update("training_records", "record_id", row["record_id"], {"lms_completed": "Yes"})
+                update_training_progress()
+                st.rerun()
+        reference_files = training_files[training_files["category"] != "Training Material"] if not training_files.empty else pd.DataFrame()
+        if not reference_files.empty:
+            table(reference_files)
+        else:
+            st.info("No reference or rule files uploaded.")
+    with tabs[3]:
+        st.subheader("MCQ Assessment")
+        if row["slides_opened"] != "Yes" and row["video_opened"] != "Yes" and row["lms_completed"] != "Yes":
+            st.warning("Complete the training content or review the reference material before taking the MCQ assessment.")
+        qs = qbank[qbank["training_id"] == tid] if not qbank.empty else pd.DataFrame()
+        if qs.empty:
+            st.warning("MCQs not generated.")
+        elif row["test_status"] == "Passed":
+            st.success("Assessment already passed.")
+        else:
+            history = db_all("assessment_history")
+            attempts = len(history[(history["user_id"] == uidv) & (history["training_id"] == tid)]) if not history.empty else 0
+            with st.form("assessment"):
+                answers = {}
+                for i, (_, q) in enumerate(qs.iterrows(), 1):
+                    st.markdown(f"**Q{i}. {q['question']}**")
+                    opts = [q["option_a"], q["option_b"], q["option_c"], q["option_d"]]
+                    answers[q["question_id"]] = st.radio("Select", opts, key=q["question_id"], label_visibility="collapsed")
+                submit = st.form_submit_button("Submit Assessment")
+            if submit:
+                correct = sum(1 for _, q in qs.iterrows() if answers.get(q["question_id"]) == q["correct_answer"])
+                score = round(correct / len(qs) * 100, 2)
+                result = "Passed" if score >= int(tr_row["passing_marks"]) else "Failed"
+                db_insert("assessment_history", {"assessment_id": uid("ASM"), "user_id": uidv, "name": actor_get(actor,"name"), "training_id": tid, "training_title": tr_row["title"], "attempt_no": attempts+1, "score": score, "result": result, "attempted_on": now(), "next_retest_allowed": str(date.today()+timedelta(days=7)) if result=="Failed" else "", "remarks": f"Correct {correct}/{len(qs)}"})
+                db_update("training_records","record_id",row["record_id"],{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}"})
+                update_training_progress()
+                st.success(f"{result}: {score}%")
+                st.rerun()
 
 
 def development_plan_page(actor):
