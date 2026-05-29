@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.db
+local_uploads/
+*.log
+.DS_Store
+_original_uploaded_project/
