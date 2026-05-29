@@ -633,8 +633,16 @@ def extract_text(name: str, data: bytes) -> str:
             texts = []
             for slide in prs.slides:
                 for shape in slide.shapes:
-                    if getattr(shape, "has_text_frame", False) and getattr(shape, "text", ""):
-                        texts.append(shape.text)
+                    if getattr(shape, "has_text_frame", False):
+                        text_frame = getattr(shape, "text_frame", None)
+                        if text_frame is not None:
+                            texts.append(text_frame.text)
+                    else:
+                        table_obj = getattr(shape, "table", None)
+                        if table_obj is not None:
+                            for row in table_obj.rows:
+                                for cell in row.cells:
+                                    texts.append(cell.text)
             return "\n".join(texts)
     except Exception:
         return ""
