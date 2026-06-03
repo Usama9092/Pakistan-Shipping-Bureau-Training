@@ -566,8 +566,9 @@ def init_db() -> None:
         seed_demo()
 
 
-def audit(action: str, details: str = "", result: str = "Success", actor: dict | None = None) -> None:
+def audit(action: str, details: str | None = "", result: str = "Success", actor: dict | None = None) -> None:
     actor_data = actor or st.session_state.get("user", {})
+    details = clean(details)
     db_insert("audit_trail", {
         "audit_id": uid("AUD"),
         "date_time": now(),
