@@ -346,6 +346,10 @@ def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
     exec_sql(f"update {table} set {sets} where {id_col}=:{id_col}", patch)
 
 
+def db_delete(table: str, id_col: str, id_val: str) -> None:
+    exec_sql(f"delete from {table} where {id_col} = :id", {"id": id_val})
+
+
 def init_db() -> None:
     stmts = [
         """create table if not exists users (
@@ -1006,7 +1010,7 @@ def admin_page(actor):
         path = c2.selectbox("Trainee / Competency Path", [""] + TRAINEE_PATHS)
         dept = c1.text_input("Department", "Survey")
         duty = c2.text_input("Assigned Duty / Scope")
-        mentors = users[users["role"].isin(["Tutor/Mentor","Principal Surveyor","Chief Plan Appraiser","Lead Auditor","Technical Manager"])] if not users.empty else pd.DataFrame()
+        mentors = users[users["role"].isin(["Trainer","Tutor/Mentor","Principal Surveyor","Chief Plan Appraiser","Lead Auditor","Technical Manager"])] if not users.empty else pd.DataFrame()
         mentor = c1.selectbox("Assigned Mentor/Tutor", [""] + (mentors["name"].astype(str)+" — "+mentors["user_id"].astype(str)).tolist())
         location = c2.text_input("Location", "Karachi")
         password = st.text_input("Password blank=auto", type="password")
@@ -1161,6 +1165,21 @@ def training_page(actor):
             f = db_all("files")
             table(f[f["linked_id"] == tid] if not f.empty else f)
         with tabs[1]:
+            st.info("Upload training source files here to extract text and generate MCQs for the selected course.")
+            uploads = st.file_uploader("Upload source files for MCQ generation", type=ALLOWED_EXTENSIONS, accept_multiple_files=True, key="mcq_source_files")
+            if st.button("Upload MCQ Source File(s)"):
+                if not uploads:
+                    st.error("Select file(s) to upload.")
+                else:
+                    uploaded = 0
+                    for f in uploads:
+                        try:
+                            upload_file(f, actor, "trainings", tid, "Training Material")
+                            uploaded += 1
+                        except Exception as e:
+                            st.error(f"{f.name}: {e}")
+                    st.success(f"{uploaded} source file(s) uploaded.")
+                    st.experimental_rerun()
             f = db_all("files")
             extracted = "\n".join(f[(f["linked_id"] == tid) & (f["extracted_text"] != "")]["extracted_text"].astype(str).tolist()) if not f.empty else ""
             content = st.text_area("MCQ Content", value=extracted, height=220)
@@ -1168,14 +1187,41 @@ def training_page(actor):
             if st.button("Generate MCQs"):
                 qs = generate_mcqs(tid, content, count)
                 if qs.empty:
-                    st.error("Could not generate MCQs. Add clearer text.")
+                    st.error("Could not generate MCQs. Add clearer text or upload a clearer source file.")
                 else:
                     exec_sql("delete from question_bank where training_id=:tid", {"tid": tid})
                     for _, q in qs.iterrows():
                         db_insert("question_bank", q.to_dict())
                     st.success(f"{len(qs)} MCQs generated.")
             q = db_all("question_bank")
-            table(q[q["training_id"] == tid] if not q.empty else q)
+            training_qs = q[q["training_id"] == tid] if not q.empty else pd.DataFrame()
+            if training_qs.empty:
+                st.warning("No MCQs generated yet for this training.")
+            else:
+                st.subheader("Generated MCQs")
+                table(training_qs)
+                selected_question = st.selectbox("Select MCQ to delete", training_qs["question"].astype(str) + " — " + training_qs["question_id"].astype(str))
+                if st.button("Delete Selected MCQ"):
+                    qid = selected_question.split(" — ")[-1]
+                    db_delete("question_bank", "question_id", qid)
+                    st.success("MCQ deleted.")
+                    st.experimental_rerun()
+                st.markdown("---")
+                st.subheader("Broadcast MCQs")
+                recipient_roles = st.multiselect("Recipient Roles", ROLES, default=["Trainee"])
+                recipients = users[(users["status"] == "Active") & (users["role"].isin(recipient_roles))] if not users.empty else pd.DataFrame()
+                selected_receivers = st.multiselect("Send To", recipients["name"].astype(str) + " — " + recipients["user_id"].astype(str))
+                broadcast_msg = st.text_area("Broadcast Message", f"New MCQs generated for {tr_row['title']}. Please login to review the course and attempt the assessment.")
+                if st.button("Broadcast MCQs"):
+                    if not selected_receivers:
+                        st.error("Select at least one recipient.")
+                    else:
+                        sent = 0
+                        for item in selected_receivers:
+                            name, uidv = item.split(" — ")
+                            create_notification(uidv, f"New MCQs Available: {tr_row['title']}", broadcast_msg, "MCQ Broadcast")
+                            sent += 1
+                        st.success(f"MCQs broadcast sent to {sent} recipients.")
         with tabs[2]:
             eligible = users[(users["status"] == "Active") & (users["role"].isin(split_list(tr_row["target_roles"])))] if not users.empty else pd.DataFrame()
             st.caption("You can assign by role/person. Admin/Trainer may add multiple theoretical modules before witness eligibility.")
