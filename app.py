@@ -1090,26 +1090,69 @@ def files_page(actor):
 
 def training_matrix_page(actor):
     st.header("Theoretical Training Matrix")
-    st.info("Admin/Trainer can add mandatory theoretical modules. These modules make candidates eligible for witness survey only after passing.")
-    if actor_get(actor, "role") in ["Admin", "Trainer"]:
-        with st.form("module"):
-            c1, c2 = st.columns(2)
-            title = c1.text_input("Module Title")
-            group = c2.text_input("Module Group", "Technical")
-            target_path = c1.selectbox("Target Path", ["All"] + TRAINEE_PATHS + ["Surveyor","Plan Appraiser","Auditor","Rule Development Rep","Industrial Surveyor"])
-            hours = c2.number_input("CPD Hours", 0.0, 100.0, 2.0)
-            mandatory = c1.checkbox("Mandatory", True)
-            refresher = c2.checkbox("Refresher Required", True)
-            validity = c1.number_input("Validity Months", 1, 120, 36)
-            submit = st.form_submit_button("Add Module")
-        if submit and title:
-            db_insert("training_modules", {
-                "module_id": uid("MOD"), "title": title, "module_group": group, "target_path": target_path,
-                "mandatory": "Yes" if mandatory else "No", "refresher_required": "Yes" if refresher else "No",
-                "cpd_hours": hours, "validity_months": validity, "added_by": actor_get(actor, "name"), "created_on": today(),
-            })
-            audit("Training Module Added", title, actor=actor)
-            st.success("Module added.")
+    st.info("Admin/Trainer/Tutor/Mentor can add, edit, or delete theoretical modules. These modules make candidates eligible for witness survey only after passing.")
+    role = actor_get(actor, "role")
+    modules = db_all("training_modules")
+    target_path_options = ["All"] + TRAINEE_PATHS + ["Surveyor", "Plan Appraiser", "Auditor", "Rule Development Rep", "Industrial Surveyor"]
+
+    if role in ["Admin", "Trainer", "Tutor/Mentor"]:
+        with st.expander("Add New Module"):
+            with st.form("module_add"):
+                c1, c2 = st.columns(2)
+                title = c1.text_input("Module Title")
+                group = c2.text_input("Module Group", "Technical")
+                target_path = c1.selectbox("Target Path", target_path_options)
+                custom_path = c1.text_input("Or custom target path")
+                if clean(custom_path):
+                    target_path = clean(custom_path)
+                hours = c2.number_input("CPD Hours", 0.0, 100.0, 2.0)
+                mandatory = c1.checkbox("Mandatory", True)
+                refresher = c2.checkbox("Refresher Required", True)
+                validity = c1.number_input("Validity Months", 1, 120, 36)
+                submit = st.form_submit_button("Add Module")
+            if submit and title:
+                db_insert("training_modules", {
+                    "module_id": uid("MOD"), "title": title, "module_group": group, "target_path": target_path,
+                    "mandatory": "Yes" if mandatory else "No", "refresher_required": "Yes" if refresher else "No",
+                    "cpd_hours": hours, "validity_months": validity, "added_by": actor_get(actor, "name"), "created_on": today(),
+                })
+                audit("Training Module Added", title, actor=actor)
+                st.success("Module added.")
+
+        if not modules.empty:
+            st.subheader("Edit Existing Module")
+            selected = st.selectbox("Select Module to Edit", modules["title"].astype(str) + " — " + modules["module_id"].astype(str))
+            if selected:
+                module_id = selected.split(" — ")[-1]
+                module = modules[modules["module_id"] == module_id].iloc[0]
+                default_index = target_path_options.index(module["target_path"]) if module["target_path"] in target_path_options else 0
+                with st.form("module_edit"):
+                    c1, c2 = st.columns(2)
+                    title = c1.text_input("Module Title", module["title"])
+                    group = c2.text_input("Module Group", module["module_group"])
+                    selected_target = c1.selectbox("Target Path", target_path_options, index=default_index)
+                    custom_path = c1.text_input("Or custom target path", "" if module["target_path"] in target_path_options else module["target_path"])
+                    target_path = clean(custom_path) or selected_target
+                    hours = c2.number_input("CPD Hours", 0.0, 100.0, float(module["cpd_hours"] or 0.0))
+                    mandatory = c1.checkbox("Mandatory", module["mandatory"] == "Yes")
+                    refresher = c2.checkbox("Refresher Required", module["refresher_required"] == "Yes")
+                    validity = c1.number_input("Validity Months", 1, 120, int(module["validity_months"] or 36))
+                    update = st.form_submit_button("Save Module Changes")
+                if update:
+                    db_update("training_modules", "module_id", module_id, {
+                        "title": title, "module_group": group, "target_path": target_path,
+                        "mandatory": "Yes" if mandatory else "No", "refresher_required": "Yes" if refresher else "No",
+                        "cpd_hours": hours, "validity_months": validity, "updated_on": now(),
+                    })
+                    audit("Training Module Updated", title, actor=actor)
+                    st.success("Module updated.")
+                    st.rerun()
+                if st.button("Delete Module", key="delete_module"):
+                    db_delete("training_modules", "module_id", module_id)
+                    audit("Training Module Deleted", module["title"], actor=actor)
+                    st.success("Module deleted.")
+                    st.rerun()
+
     table(db_all("training_modules"))
 
 
@@ -1117,7 +1160,7 @@ def training_page(actor):
     st.header("Training Management")
     role = actor_get(actor, "role")
     users = db_all("users"); trainings = db_all("trainings")
-    if role in ["Admin","Trainer"]:
+    if role in ["Admin","Trainer","Tutor/Mentor"]:
         with st.expander("Create Course from Theoretical Module"):
             modules = db_all("training_modules")
             trainers = users[(users["role"] == "Trainer") & (users["status"] == "Active")] if not users.empty else pd.DataFrame()
@@ -1150,7 +1193,7 @@ def training_page(actor):
         return
     if role == "Trainer":
         trainings = trainings[trainings["trainer_id"] == actor_get(actor, "user_id")]
-    elif role not in ["Admin","Trainer"]:
+    elif role not in ["Admin","Trainer","Tutor/Mentor"]:
         rec = db_all("training_records")
         ids = rec[rec["user_id"] == actor_get(actor, "user_id")]["training_id"].tolist() if not rec.empty else []
         trainings = trainings[trainings["training_id"].isin(ids)]
@@ -1161,6 +1204,40 @@ def training_page(actor):
     tid = selected.split(" — ")[-1]
     tr = db_all("trainings")
     tr_row = tr[tr["training_id"] == tid].iloc[0]
+    if role in ["Admin","Trainer","Tutor/Mentor"]:
+        st.subheader("Edit Training Details")
+        trainers = users[(users["role"] == "Trainer") & (users["status"] == "Active")] if not users.empty else pd.DataFrame()
+        trainer_options = list(trainers["name"].astype(str) + " — " + trainers["user_id"].astype(str)) if not trainers.empty else [f"{tr_row['trainer_name']} — {tr_row['trainer_id']}"]
+        trainer_default = f"{tr_row['trainer_name']} — {tr_row['trainer_id']}"
+        trainer_index = trainer_options.index(trainer_default) if trainer_default in trainer_options else 0
+        status_options = ["Draft", "Scheduled", "Completed", "Cancelled"]
+        status_default = tr_row["status"] if tr_row["status"] in status_options else "Draft"
+        status_index = status_options.index(status_default)
+        with st.expander("Edit Course Details", expanded=False):
+            c1, c2 = st.columns(2)
+            title = c1.text_input("Training Title", tr_row["title"])
+            category = c2.text_input("Category", tr_row["category"])
+            trainer_selected = c1.selectbox("Trainer", trainer_options, index=trainer_index)
+            target_roles = c2.multiselect("Target Roles", ROLES, default=split_list(tr_row["target_roles"]))
+            target_paths = c1.text_input("Target Paths", tr_row["target_paths"])
+            passing = c2.number_input("Passing Marks", 1, 100, int(tr_row["passing_marks"] or 75))
+            validity = c1.number_input("Validity Months", 1, 120, int(tr_row["validity_months"] or 36))
+            status = c2.selectbox("Status", status_options, index=status_index)
+            if st.button("Save Training Details", key="save_training_details"):
+                trainer_name, trainer_id = trainer_selected.split(" — ")
+                db_update("trainings", "training_id", tid, {
+                    "title": title, "category": category, "target_roles": join_list(target_roles),
+                    "target_paths": target_paths, "trainer_id": trainer_id, "trainer_name": trainer_name,
+                    "passing_marks": passing, "validity_months": validity, "status": status,
+                    "updated_on": now(),
+                })
+                audit("Training Updated", title, actor=actor)
+                st.success("Training details saved.")
+            if st.button("Delete Training", key="delete_training"):
+                db_delete("trainings", "training_id", tid)
+                audit("Training Deleted", tr_row["title"], actor=actor)
+                st.success("Training deleted.")
+                st.rerun()
     if role in ["Admin","Trainer"]:
         tabs = st.tabs(["Files & Links","MCQ","Assignment","Attendance/Records"])
         with tabs[0]:
