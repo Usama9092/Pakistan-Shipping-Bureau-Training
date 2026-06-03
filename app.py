@@ -18,7 +18,6 @@ import uuid
 import pandas as pd
 import qrcode
 import streamlit as st
-import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -52,6 +51,44 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "psb-hrdm-files")
 LOGO_PATH = Path("assets/psb-logo.png")
 LOCAL_UPLOAD_DIR = Path("local_uploads")
+
+APP_ENV = os.getenv("APP_ENV", "production" if os.getenv("RENDER") else "local").lower()
+
+
+def is_render_runtime() -> bool:
+    return bool(os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID") or os.getenv("RENDER_EXTERNAL_URL"))
+
+
+def database_is_persistent() -> bool:
+    url = DATABASE_URL.lower().strip()
+    return url.startswith(("postgresql://", "postgresql+psycopg2://", "postgres://"))
+
+
+def storage_is_persistent() -> bool:
+    return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_BUCKET)
+
+
+def require_persistent_backend() -> None:
+    """Prevent data loss on Render by blocking temporary SQLite/local storage."""
+    if is_render_runtime() and not database_is_persistent():
+        st.error("Persistent database is not configured. Render local SQLite storage is temporary and data will disappear after restart/redeploy.")
+        st.markdown("""
+        **Fix in Render → Environment Variables:**
+        ```text
+        DATABASE_URL=postgresql://postgres:PASSWORD@HOST:5432/postgres
+        SUPABASE_URL=https://your-project.supabase.co
+        SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+        SUPABASE_BUCKET=psb-hrdm-files
+        ```
+        """)
+        st.stop()
+
+
+def backend_status_badges() -> str:
+    db_badge = "✅ PostgreSQL/Supabase" if database_is_persistent() else "⚠️ Local SQLite"
+    storage_badge = "✅ Supabase Storage" if storage_is_persistent() else ("⚠️ Local files" if not is_render_runtime() else "❌ Storage missing")
+    return f"<span class='pill'>{db_badge}</span><span class='pill'>{storage_badge}</span>"
+
 
 STANDARDS = [
     "IMO RO Code",
@@ -143,7 +180,7 @@ FILE_CATEGORIES = [
     "Other",
 ]
 
-ALLOWED_EXTENSIONS = ["pdf", "ppt", "pptx", "txt", "doc", "docx", "png", "jpg", "jpeg", "mp4", "xlsx", "csv", "html"]
+ALLOWED_EXTENSIONS = ["pdf", "ppt", "pptx", "txt", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "mp4", "csv", "html"]
 
 CORE_THEORETICAL_MODULES = [
     ("CORE-001", "PSB Induction and Code of Ethics", "All", "Core", 2),
@@ -233,7 +270,7 @@ def add_months(months: int) -> str:
     return date(year, month, day).strftime("%Y-%m-%d")
 
 
-def actor_get(actor: dict | None, key: str, default: str = "") -> str:
+def actor_get(actor: dict, key: str, default: str = "") -> str:
     return clean(actor.get(key, default)) if isinstance(actor, dict) else default
 
 
@@ -254,7 +291,7 @@ def logo_data_uri() -> str:
 def make_qr_data_uri(value: str) -> str:
     img = qrcode.make(value)
     buf = io.BytesIO()
-    img.save(buf, "PNG")
+    img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -484,7 +521,7 @@ def init_db() -> None:
             job_id text, rating integer, feedback_type text, comments text, impact_on_kpi text, received_on text
         )""",
         """create table if not exists succession_plans (
-            succession_id text primary key, user_id text, name text, current_role text, target_role text,
+            succession_id text primary key, user_id text, name text, current_role_name text, target_role text,
             readiness_level text, successor_for text, development_actions text, expected_ready_date text,
             sponsor text, status text, created_on text
         )""",
@@ -596,9 +633,13 @@ def upload_file(uploaded_file, actor: dict, linked_table: str, linked_id: str, c
             )
             public_url = client.storage.from_(SUPABASE_BUCKET).get_public_url(storage_path)
             provider = "supabase"
-        except Exception:
+        except Exception as e:
+            if is_render_runtime():
+                raise RuntimeError(f"Supabase Storage upload failed on Render. Configure SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_BUCKET. Details: {e}")
             provider = "local"
     if provider == "local":
+        if is_render_runtime():
+            raise RuntimeError("Local file storage is disabled on Render because it is temporary. Configure Supabase Storage.")
         local_path = LOCAL_UPLOAD_DIR / storage_path
         local_path.parent.mkdir(parents=True, exist_ok=True)
         local_path.write_bytes(data)
@@ -633,16 +674,8 @@ def extract_text(name: str, data: bytes) -> str:
             texts = []
             for slide in prs.slides:
                 for shape in slide.shapes:
-                    if getattr(shape, "has_text_frame", False):
-                        text_frame = getattr(shape, "text_frame", None)
-                        if text_frame is not None:
-                            texts.append(text_frame.text)
-                    else:
-                        table_obj = getattr(shape, "table", None)
-                        if table_obj is not None:
-                            for row in table_obj.rows:
-                                for cell in row.cells:
-                                    texts.append(cell.text)
+                    if hasattr(shape, "text"):
+                        texts.append(shape.text)
             return "\n".join(texts)
     except Exception:
         return ""
@@ -794,14 +827,23 @@ h1{{color:#071225;text-align:center;margin-bottom:0}} h2{{text-align:center;colo
 def apply_style() -> None:
     st.markdown("""
     <style>
-    .stApp{background:#eef3f8}.block-container{padding-top:1rem;padding-bottom:2rem}
-    .psb-hero{background:linear-gradient(135deg,#071225,#0b3b76);color:white;padding:1.35rem 1.55rem;border-radius:26px;margin-bottom:1.1rem;box-shadow:0 20px 55px rgba(15,23,42,.18);display:flex;gap:18px;align-items:center}
-    .psb-hero img{width:88px;height:88px;border-radius:50%;object-fit:contain;background:white;padding:4px}
-    .psb-hero h1{margin:0;font-size:2.05rem;letter-spacing:-.02em}.psb-hero p{color:#dbeafe;margin:.35rem 0 0}
-    .pill{display:inline-flex;padding:5px 10px;border-radius:999px;background:#e8eef7;color:#0f172a;font-size:12px;font-weight:700;margin:4px 5px 4px 0}
-    .psb-hero .pill{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.2)}
-    .step{border-left:4px solid #071225;background:#f8fafc;border-radius:14px;padding:.75rem .9rem;margin:.35rem 0}
-    .login-wrap{max-width:560px;margin:2rem auto;background:white;padding:2rem;border-radius:28px;box-shadow:0 24px 70px rgba(15,23,42,.16);text-align:center}
+    .stApp{background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%);color:#0f172a}
+    .block-container{padding-top:1rem;padding-bottom:2rem;max-width:1420px}
+    section[data-testid="stSidebar"]{background:linear-gradient(180deg,#071225 0%,#0b3b76 100%)}
+    section[data-testid="stSidebar"] *{color:#f8fafc}
+    div[data-testid="stMetric"]{background:white;border:1px solid #dbe3ef;border-radius:18px;padding:14px;box-shadow:0 10px 30px rgba(15,23,42,.07)}
+    .psb-hero{background:linear-gradient(135deg,#071225,#0b3b76 65%,#124f9e);color:white;padding:1.5rem 1.75rem;border-radius:28px;margin-bottom:1.2rem;box-shadow:0 24px 70px rgba(15,23,42,.22);display:flex;gap:20px;align-items:center;border:1px solid rgba(255,255,255,.16)}
+    .psb-hero img{width:96px;height:96px;border-radius:50%;object-fit:contain;background:white;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+    .psb-hero h1{margin:0;font-size:2.15rem;letter-spacing:-.025em;font-weight:800}
+    .psb-hero p{color:#dbeafe;margin:.4rem 0 .2rem;font-size:1.02rem}
+    .pill{display:inline-flex;padding:6px 11px;border-radius:999px;background:#e8eef7;color:#0f172a;font-size:12px;font-weight:800;margin:4px 5px 4px 0;border:1px solid #d7e0ec}
+    .psb-hero .pill{background:rgba(255,255,255,.14);color:white;border:1px solid rgba(255,255,255,.24)}
+    .step{border-left:5px solid #0b3b76;background:white;border-radius:16px;padding:.85rem 1rem;margin:.45rem 0;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+    .login-wrap{max-width:590px;margin:2rem auto;background:white;padding:2.2rem;border-radius:30px;box-shadow:0 28px 80px rgba(15,23,42,.18);text-align:center;border:1px solid #dbe3ef}
+    .stButton>button,.stDownloadButton>button{border-radius:12px;border:1px solid #0b3b76;background:#0b3b76;color:white;font-weight:700}
+    .stButton>button:hover,.stDownloadButton>button:hover{background:#071225;color:white;border-color:#071225}
+    div[data-testid="stDataFrame"]{border-radius:18px;overflow:hidden;border:1px solid #dbe3ef}
+    h1,h2,h3{letter-spacing:-.02em}
     </style>
     """, unsafe_allow_html=True)
 
@@ -811,7 +853,7 @@ def header() -> None:
     st.markdown(f"""
     <div class='psb-hero'>{logo}<div>
     <h1>{APP_TITLE}</h1><p>{APP_SUBTITLE}</p>
-    <div>{"".join([f"<span class='pill'>{s}</span>" for s in STANDARDS])}</div>
+    <div>{"".join([f"<span class='pill'>{s}</span>" for s in STANDARDS])}{backend_status_badges()}</div>
     </div></div>
     """, unsafe_allow_html=True)
 
@@ -945,6 +987,16 @@ def dashboard_page(actor):
 
 def admin_page(actor):
     st.header("Admin Control Center")
+    st.subheader("Backend Persistence Status")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Database", "Persistent" if database_is_persistent() else "Local/Temporary")
+    c2.metric("File Storage", "Persistent" if storage_is_persistent() else "Local/Missing")
+    c3.metric("Runtime", "Render" if is_render_runtime() else "Local")
+    if not database_is_persistent():
+        st.warning("Local SQLite is only for testing. On Render, use Supabase/PostgreSQL DATABASE_URL to prevent data loss.")
+    if not storage_is_persistent():
+        st.warning("Supabase Storage is recommended for uploaded files. Local uploads may not persist on hosting platforms.")
+
     users = db_all("users")
     with st.form("create_user"):
         c1, c2 = st.columns(2)
@@ -1091,52 +1143,29 @@ def training_page(actor):
     tr = db_all("trainings")
     tr_row = tr[tr["training_id"] == tid].iloc[0]
     if role in ["Admin","Trainer"]:
-        tabs = st.tabs(["Materials","Video","Reference / Rules","MCQ","Assignment","Attendance/Records"])
+        tabs = st.tabs(["Files & Links","MCQ","Assignment","Attendance/Records"])
         with tabs[0]:
-            st.subheader("Training Materials")
             file_upload_panel(actor, "trainings", tid, "Training Material")
             slides = st.text_input("Slides Link", tr_row["slides_link"])
-            scorm = st.text_input("SCORM Package Link", tr_row["scorm_package_link"])
-            schedule_date = date.fromisoformat(tr_row["schedule_date"]) if clean(tr_row["schedule_date"]) else date.today()
-            sdate = st.date_input("Schedule Date", schedule_date)
-            stime = st.text_input("Schedule Time", tr_row["schedule_time"])
-            if st.button("Save Materials and Schedule", key="save_materials"):
-                db_update("trainings", "training_id", tid, {"slides_link": slides, "scorm_package_link": scorm, "schedule_date": str(sdate), "schedule_time": stime, "status": "Scheduled", "updated_on": now()})
-                st.success("Materials and schedule saved.")
-            f = db_all("files")
-            material_files = f[(f["linked_id"] == tid) & (f["category"] == "Training Material")] if not f.empty else pd.DataFrame()
-            table(material_files if not material_files.empty else pd.DataFrame())
-        with tabs[1]:
-            st.subheader("Video and Meeting")
             video = st.text_input("Video Link", tr_row["video_link"])
-            meeting = st.text_input("Meeting Link", tr_row["meeting_link"])
+            ref = st.text_input("Reference Link", tr_row["reference_link"])
+            scorm = st.text_input("SCORM Package Link", tr_row["scorm_package_link"])
+            sdate = st.date_input("Schedule Date")
+            stime = st.text_input("Schedule Time", tr_row["schedule_time"])
+            st.link_button("Open MS Teams to Create Meeting", f"https://teams.microsoft.com/l/meeting/new?subject={quote_plus(clean(tr_row['title']))}")
+            meeting = st.text_input("Final MS Teams Meeting Link", tr_row["meeting_link"])
             recording = st.text_input("Recording Link", tr_row["recording_link"])
-            if st.button("Save Video and Meeting", key="save_video"):
-                db_update("trainings", "training_id", tid, {"video_link": video, "meeting_link": meeting, "recording_link": recording, "status": "Scheduled", "updated_on": now()})
-                st.success("Video and meeting links saved.")
-            if video:
-                st.markdown(f"[Open Video]({video})")
-            if meeting:
-                st.markdown(f"[Open Meeting]({meeting})")
-            if recording:
-                st.markdown(f"[Open Recording]({recording})")
-        with tabs[2]:
-            st.subheader("Reference Documents and Rules")
-            ref = st.text_input("Reference / Rule Link", tr_row["reference_link"])
-            if st.button("Save Reference Link", key="save_reference"):
-                db_update("trainings", "training_id", tid, {"reference_link": ref, "status": "Scheduled", "updated_on": now()})
-                st.success("Reference link saved.")
-            ref_files = f[(f["linked_id"] == tid) & (f["category"] != "Training Material")] if not f.empty else pd.DataFrame()
-            if ref:
-                st.markdown(f"[Open Reference]({ref})")
-            table(ref_files if not ref_files.empty else pd.DataFrame())
-        with tabs[3]:
-            st.subheader("MCQ Generation")
+            if st.button("Save Links and Schedule"):
+                db_update("trainings", "training_id", tid, {"slides_link": slides, "video_link": video, "reference_link": ref, "scorm_package_link": scorm, "schedule_date": str(sdate), "schedule_time": stime, "meeting_link": meeting, "recording_link": recording, "status": "Scheduled", "updated_on": now()})
+                st.success("Saved.")
+            f = db_all("files")
+            table(f[f["linked_id"] == tid] if not f.empty else f)
+        with tabs[1]:
             f = db_all("files")
             extracted = "\n".join(f[(f["linked_id"] == tid) & (f["extracted_text"] != "")]["extracted_text"].astype(str).tolist()) if not f.empty else ""
             content = st.text_area("MCQ Content", value=extracted, height=220)
             count = st.slider("Number of MCQs", 5, 30, 10)
-            if st.button("Generate MCQs", key="generate_mcqs"):
+            if st.button("Generate MCQs"):
                 qs = generate_mcqs(tid, content, count)
                 if qs.empty:
                     st.error("Could not generate MCQs. Add clearer text.")
@@ -1147,12 +1176,12 @@ def training_page(actor):
                     st.success(f"{len(qs)} MCQs generated.")
             q = db_all("question_bank")
             table(q[q["training_id"] == tid] if not q.empty else q)
-        with tabs[4]:
-            eligible = users[(users["status"] == "Active") & (users["role"].isin(split_list(tr_row["target_roles"]))) ] if not users.empty else pd.DataFrame()
-            st.caption("Assign by role or person. Trainer may add content, schedule, and generate MCQs before assignment.")
+        with tabs[2]:
+            eligible = users[(users["status"] == "Active") & (users["role"].isin(split_list(tr_row["target_roles"])))] if not users.empty else pd.DataFrame()
+            st.caption("You can assign by role/person. Admin/Trainer may add multiple theoretical modules before witness eligibility.")
             selected_users = st.multiselect("Assign Persons", eligible["name"].astype(str)+" — "+eligible["user_id"].astype(str))
             due = st.date_input("Due Date", date.today()+timedelta(days=30))
-            if st.button("Assign Training", key="assign_training"):
+            if st.button("Assign Training"):
                 records = db_all("training_records")
                 added = 0
                 for item in selected_users:
@@ -1171,14 +1200,14 @@ def training_page(actor):
                     create_notification(uidv, f"Training Assigned: {tr_row['title']}", f"Training due on {due}", "Training")
                     added += 1
                 st.success(f"{added} persons assigned.")
-        with tabs[5]:
+        with tabs[3]:
             rec = db_all("training_records")
             assigned = rec[rec["training_id"] == tid] if not rec.empty else pd.DataFrame()
             table(assigned)
             if not assigned.empty:
                 person = st.selectbox("Mark Attendance", assigned["name"].astype(str)+" — "+assigned["user_id"].astype(str))
                 att = st.selectbox("Attendance", ["Present", "Absent"])
-                if st.button("Save Attendance", key="save_attendance"):
+                if st.button("Save Attendance"):
                     uidv = person.split(" — ")[-1]
                     rr = assigned[assigned["user_id"] == uidv].iloc[0]
                     db_update("training_records", "record_id", rr["record_id"], {"live_attendance": att, "updated_on": now()})
@@ -1197,84 +1226,40 @@ def trainee_training(actor, tid):
         return
     row = rr.iloc[0]; tr_row = tr[tr["training_id"] == tid].iloc[0]
     metrics([("Progress", f"{row['progress']}%"), ("LMS", row["lms_completed"]), ("Test", row["test_status"]), ("Certificate", row["certificate_status"])])
-    tabs = st.tabs(["Materials","Video","Reference / Rules","MCQ"])
-    f = db_all("files")
-    training_files = f[f["linked_id"] == tid] if not f.empty else pd.DataFrame()
-    with tabs[0]:
-        st.subheader("Training Materials")
-        st.markdown(f"**Scheduled:** {tr_row['schedule_date']} {tr_row['schedule_time']}")
-        if tr_row["slides_link"]:
-            st.markdown(f"[Open Slides]({tr_row['slides_link']})")
-            if st.button("Mark Slides Viewed", key="mark_slides"):
-                db_update("training_records", "record_id", row["record_id"], {"slides_opened": "Yes"})
-                update_training_progress()
-                st.rerun()
-        material_files = training_files[training_files["category"] == "Training Material"] if not training_files.empty else pd.DataFrame()
-        if not material_files.empty:
-            table(material_files)
-        else:
-            st.info("No training material files uploaded.")
-    with tabs[1]:
-        st.subheader("Video and Online Training")
-        if tr_row["video_link"]:
-            st.markdown(f"[Open Video]({tr_row['video_link']})")
-            if st.button("Mark Video Viewed", key="mark_video"):
-                db_update("training_records", "record_id", row["record_id"], {"video_opened": "Yes"})
-                update_training_progress()
-                st.rerun()
-        if tr_row["meeting_link"]:
-            st.markdown(f"[Open Meeting]({tr_row['meeting_link']})")
-            if st.button("Mark Present for Online Session", key="mark_present"):
-                db_update("training_records", "record_id", row["record_id"], {"live_attendance": "Present", "video_opened": "Yes"})
-                update_training_progress()
-                st.rerun()
-        if tr_row["recording_link"]:
-            st.markdown(f"[Open Recording]({tr_row['recording_link']})")
-            if st.button("Mark Recording Viewed", key="mark_recording"):
-                db_update("training_records", "record_id", row["record_id"], {"recording_opened": "Yes", "video_opened": "Yes", "live_attendance": "Recording Viewed"})
-                update_training_progress()
-                st.rerun()
-    with tabs[2]:
-        st.subheader("Reference Documents and Rules")
-        if tr_row["reference_link"]:
-            st.markdown(f"[Open Reference]({tr_row['reference_link']})")
-            if st.button("Mark Reference Reviewed", key="mark_reference"):
-                db_update("training_records", "record_id", row["record_id"], {"lms_completed": "Yes"})
-                update_training_progress()
-                st.rerun()
-        reference_files = training_files[training_files["category"] != "Training Material"] if not training_files.empty else pd.DataFrame()
-        if not reference_files.empty:
-            table(reference_files)
-        else:
-            st.info("No reference or rule files uploaded.")
-    with tabs[3]:
-        st.subheader("MCQ Assessment")
-        if row["slides_opened"] != "Yes" and row["video_opened"] != "Yes" and row["lms_completed"] != "Yes":
-            st.warning("Complete the training content or review the reference material before taking the MCQ assessment.")
-        qs = qbank[qbank["training_id"] == tid] if not qbank.empty else pd.DataFrame()
-        if qs.empty:
-            st.warning("MCQs not generated.")
-        elif row["test_status"] == "Passed":
-            st.success("Assessment already passed.")
-        else:
-            history = db_all("assessment_history")
-            attempts = len(history[(history["user_id"] == uidv) & (history["training_id"] == tid)]) if not history.empty else 0
-            with st.form("assessment"):
-                answers = {}
-                for i, (_, q) in enumerate(qs.iterrows(), 1):
-                    st.markdown(f"**Q{i}. {q['question']}**")
-                    opts = [q["option_a"], q["option_b"], q["option_c"], q["option_d"]]
-                    answers[q["question_id"]] = st.radio("Select", opts, key=q["question_id"], label_visibility="collapsed")
-                submit = st.form_submit_button("Submit Assessment")
-            if submit:
-                correct = sum(1 for _, q in qs.iterrows() if answers.get(q["question_id"]) == q["correct_answer"])
-                score = round(correct / len(qs) * 100, 2)
-                result = "Passed" if score >= int(tr_row["passing_marks"]) else "Failed"
-                db_insert("assessment_history", {"assessment_id": uid("ASM"), "user_id": uidv, "name": actor_get(actor,"name"), "training_id": tid, "training_title": tr_row["title"], "attempt_no": attempts+1, "score": score, "result": result, "attempted_on": now(), "next_retest_allowed": str(date.today()+timedelta(days=7)) if result=="Failed" else "", "remarks": f"Correct {correct}/{len(qs)}"})
-                db_update("training_records","record_id",row["record_id"],{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}"})
-                update_training_progress()
-                st.success(f"{result}: {score}%")
-                st.rerun()
+    c1,c2,c3,c4 = st.columns(4)
+    if c1.button("Mark Slides Complete"):
+        db_update("training_records","record_id",row["record_id"],{"slides_opened":"Yes"}); update_training_progress(); st.rerun()
+    if c2.button("Mark Video Complete"):
+        db_update("training_records","record_id",row["record_id"],{"video_opened":"Yes"}); update_training_progress(); st.rerun()
+    if c3.button("Mark Recording Complete"):
+        db_update("training_records","record_id",row["record_id"],{"recording_opened":"Yes","video_opened":"Yes","live_attendance":"Recording Viewed"}); update_training_progress(); st.rerun()
+    if c4.button("Mark LMS/SCORM Complete"):
+        db_update("training_records","record_id",row["record_id"],{"lms_completed":"Yes"}); update_training_progress(); st.rerun()
+    qs = qbank[qbank["training_id"] == tid] if not qbank.empty else pd.DataFrame()
+    if qs.empty:
+        st.warning("MCQs not generated.")
+        return
+    if row["test_status"] == "Passed":
+        st.success("Assessment already passed.")
+        return
+    history = db_all("assessment_history")
+    attempts = len(history[(history["user_id"] == uidv) & (history["training_id"] == tid)]) if not history.empty else 0
+    with st.form("assessment"):
+        answers = {}
+        for i, (_, q) in enumerate(qs.iterrows(), 1):
+            st.markdown(f"**Q{i}. {q['question']}**")
+            opts = [q["option_a"], q["option_b"], q["option_c"], q["option_d"]]
+            answers[q["question_id"]] = st.radio("Select", opts, key=q["question_id"], label_visibility="collapsed")
+        submit = st.form_submit_button("Submit Assessment")
+    if submit:
+        correct = sum(1 for _, q in qs.iterrows() if answers.get(q["question_id"]) == q["correct_answer"])
+        score = round(correct / len(qs) * 100, 2)
+        result = "Passed" if score >= int(tr_row["passing_marks"]) else "Failed"
+        db_insert("assessment_history", {"assessment_id": uid("ASM"), "user_id": uidv, "name": actor_get(actor,"name"), "training_id": tid, "training_title": tr_row["title"], "attempt_no": attempts+1, "score": score, "result": result, "attempted_on": now(), "next_retest_allowed": str(date.today()+timedelta(days=7)) if result=="Failed" else "", "remarks": f"Correct {correct}/{len(qs)}"})
+        db_update("training_records","record_id",row["record_id"],{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}"})
+        update_training_progress()
+        st.success(f"{result}: {score}%")
+        st.rerun()
 
 
 def development_plan_page(actor):
@@ -1496,7 +1481,7 @@ def authorization_page(actor):
     req2 = req2[req2["authorization_id"] == aid].iloc[0]
     if clean(req2["certificate_html"]):
         st.subheader("Certificate")
-        components.html(req2["certificate_html"], height=650, scrolling=True)
+        st.components.v1.html(req2["certificate_html"], height=650, scrolling=True)
         st.download_button("Download Certificate", req2["certificate_html"], file_name=f"{req2['certificate_id']}.html", mime="text/html")
 
 
@@ -1987,8 +1972,9 @@ def management_page(actor):
 
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon="⚓", layout="wide")
-    init_db()
     apply_style()
+    require_persistent_backend()
+    init_db()
     actor = require_login()
     header()
     page = sidebar(actor)

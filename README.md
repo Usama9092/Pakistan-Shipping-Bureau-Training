@@ -54,6 +54,12 @@ Start command:
 streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
 ```
 
+## PostgreSQL / Supabase migration files
+
+- `database/postgres_schema.sql` contains the complete PostgreSQL schema, indexes, and references for all app tables.
+- `database/supabase_rls_template.sql` enables row level security on all supported tables after the schema is created.
+- `database/supabase_rls_and_storage.sql` provides a Supabase-ready RLS template and storage guidance.
+
 ## Environment variables for Render
 
 ```text
@@ -112,3 +118,22 @@ Admin assigns role/path/mentor
 10. Workforce Planning / Resource Forecasting
 11. Accreditation Readiness Dashboard
 12. Rule Interpretation / Technical Decision Portal
+
+## IMPORTANT: Prevent Data Loss on Render
+
+This version prevents accidental data loss by blocking temporary SQLite/local storage on Render.
+
+Set these Render Environment Variables:
+
+```text
+DATABASE_URL=postgresql://postgres:PASSWORD@HOST:5432/postgres
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_BUCKET=psb-hrdm-files
+PUBLIC_URL=https://training.psbureau.org
+APP_ENV=production
+```
+
+Local SQLite is allowed only for local testing. On Render, the app will stop and show a configuration warning if `DATABASE_URL` is not PostgreSQL/Supabase.
+
+Uploaded files also require Supabase Storage on Render, so training files, evidence, certificates and records do not disappear after restart/redeploy.
