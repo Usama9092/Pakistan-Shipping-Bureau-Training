@@ -291,7 +291,7 @@ def logo_data_uri() -> str:
 def make_qr_data_uri(value: str) -> str:
     img = qrcode.make(value)
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
@@ -552,13 +552,13 @@ def init_db() -> None:
 
 
 def audit(action: str, details: str = "", result: str = "Success", actor: dict | None = None) -> None:
-    actor = actor or st.session_state.get("user", {})
+    actor_data = actor or st.session_state.get("user", {})
     db_insert("audit_trail", {
         "audit_id": uid("AUD"),
         "date_time": now(),
-        "actor_id": actor_get(actor, "user_id"),
-        "actor_name": actor_get(actor, "name", "System"),
-        "actor_role": actor_get(actor, "role", "System"),
+        "actor_id": actor_get(actor_data, "user_id"),
+        "actor_name": actor_get(actor_data, "name", "System"),
+        "actor_role": actor_get(actor_data, "role", "System"),
         "action": action,
         "details": details,
         "result": result,
@@ -679,7 +679,7 @@ def extract_text(name: str, data: bytes) -> str:
             for slide in prs.slides:
                 for shape in slide.shapes:
                     if hasattr(shape, "text"):
-                        texts.append(shape.text)
+                        texts.append(shape.text)  # type: ignore
             return "\n".join(texts)
     except Exception:
         return ""
@@ -1179,7 +1179,7 @@ def training_page(actor):
                         except Exception as e:
                             st.error(f"{f.name}: {e}")
                     st.success(f"{uploaded} source file(s) uploaded.")
-                    st.experimental_rerun()
+                    st.rerun()
             f = db_all("files")
             extracted = "\n".join(f[(f["linked_id"] == tid) & (f["extracted_text"] != "")]["extracted_text"].astype(str).tolist()) if not f.empty else ""
             content = st.text_area("MCQ Content", value=extracted, height=220)
@@ -1205,7 +1205,7 @@ def training_page(actor):
                     qid = selected_question.split(" — ")[-1]
                     db_delete("question_bank", "question_id", qid)
                     st.success("MCQ deleted.")
-                    st.experimental_rerun()
+                    st.rerun()
                 st.markdown("---")
                 st.subheader("Broadcast MCQs")
                 recipient_roles = st.multiselect("Recipient Roles", ROLES, default=["Trainee"])
@@ -1527,7 +1527,7 @@ def authorization_page(actor):
     req2 = req2[req2["authorization_id"] == aid].iloc[0]
     if clean(req2["certificate_html"]):
         st.subheader("Certificate")
-        st.components.v1.html(req2["certificate_html"], height=650, scrolling=True)
+        st.html(req2["certificate_html"])
         st.download_button("Download Certificate", req2["certificate_html"], file_name=f"{req2['certificate_id']}.html", mime="text/html")
 
 
