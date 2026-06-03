@@ -329,7 +329,21 @@ def db_all(table: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def convert_numpy_types(row: dict) -> dict:
+    """Convert numpy types to Python native types for database compatibility."""
+    converted = {}
+    for key, value in row.items():
+        if value is None:
+            converted[key] = None
+        elif hasattr(value, 'item'):  # numpy scalars have .item() method
+            converted[key] = value.item()
+        else:
+            converted[key] = value
+    return converted
+
+
 def db_insert(table: str, row: dict) -> None:
+    row = convert_numpy_types(row)
     cols = list(row.keys())
     exec_sql(
         f"insert into {table} ({', '.join(cols)}) values ({', '.join([f':{c}' for c in cols])})",
@@ -342,6 +356,7 @@ def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
         return
     patch = dict(row)
     patch[id_col] = id_val
+    patch = convert_numpy_types(patch)
     sets = ", ".join([f"{k}=:{k}" for k in row.keys()])
     exec_sql(f"update {table} set {sets} where {id_col}=:{id_col}", patch)
 
