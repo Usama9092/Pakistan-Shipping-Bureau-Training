@@ -14,6 +14,7 @@ import re
 import secrets
 import string
 import uuid
+import functools
 
 import pandas as pd
 import qrcode
@@ -302,7 +303,17 @@ def get_engine() -> Engine:
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    return create_engine(url, pool_pre_ping=True)
+    
+    if url.startswith("sqlite"):
+        return create_engine(url, pool_pre_ping=True, connect_args={"check_same_thread": False})
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        pool_recycle=1800,
+        pool_timeout=30,
+    )
 
 
 @st.cache_resource
@@ -322,11 +333,43 @@ def query_sql(sql: str, params: dict | None = None) -> pd.DataFrame:
         return pd.read_sql(text(sql), conn, params=params or {})
 
 
+@st.cache_data(ttl=20, show_spinner=False)
 def db_all(table: str) -> pd.DataFrame:
+    """Cached full-table reads. Streamlit reruns the whole script on every click;
+    caching prevents repeated full-table SELECTs during normal navigation.
+    The cache is cleared after insert/update/delete operations below.
+    """
     try:
         return query_sql(f"select * from {table}")
     except Exception:
         return pd.DataFrame()
+
+@st.cache_data(ttl=20, show_spinner=False)
+def db_where(table: str, where_sql: str, params_tuple: tuple[tuple[str, object], ...] = ()) -> pd.DataFrame:
+    """Cached filtered read. Use this on interactive pages instead of loading full tables."""
+    try:
+        params = dict(params_tuple)
+        return query_sql(f"select * from {table} where {where_sql}", params)
+    except Exception:
+        return pd.DataFrame()
+
+
+def clear_db_cache() -> None:
+    """Clear Streamlit data caches after write operations.
+    The previous version accidentally called itself recursively, which could
+    freeze the app after inserts/updates/deletes.
+    """
+    try:
+        db_all.clear()
+        db_where.clear()
+    except Exception:
+        pass
+
+
+def first_row(df: pd.DataFrame) -> dict | None:
+    if df is None or df.empty:
+        return None
+    return df.iloc[0].to_dict()
 
 
 def convert_numpy_types(row: dict) -> dict:
@@ -349,6 +392,7 @@ def db_insert(table: str, row: dict) -> None:
         f"insert into {table} ({', '.join(cols)}) values ({', '.join([f':{c}' for c in cols])})",
         row,
     )
+    clear_db_cache()
 
 
 def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
@@ -359,12 +403,15 @@ def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
     patch = convert_numpy_types(patch)
     sets = ", ".join([f"{k}=:{k}" for k in row.keys()])
     exec_sql(f"update {table} set {sets} where {id_col}=:{id_col}", patch)
+    clear_db_cache()
 
 
 def db_delete(table: str, id_col: str, id_val: str) -> None:
     exec_sql(f"delete from {table} where {id_col} = :id", {"id": id_val})
+    clear_db_cache()
 
 
+@st.cache_resource(show_spinner=False)
 def init_db() -> None:
     stmts = [
         """create table if not exists users (
@@ -562,8 +609,37 @@ def init_db() -> None:
     ]
     for s in stmts:
         exec_sql(s)
+    ensure_indexes()
     if db_all("users").empty:
         seed_demo()
+
+
+def ensure_indexes() -> None:
+    """Create common PostgreSQL/Supabase indexes used by dashboards and trainee pages."""
+    indexes = [
+        "create index if not exists users_login_id_idx on users(login_id)",
+        "create index if not exists users_email_idx on users(email)",
+        "create index if not exists trainings_trainer_id_idx on trainings(trainer_id)",
+        "create index if not exists trainings_status_idx on trainings(status)",
+        "create index if not exists training_records_user_id_idx on training_records(user_id)",
+        "create index if not exists training_records_training_id_idx on training_records(training_id)",
+        "create index if not exists training_records_user_training_idx on training_records(user_id, training_id)",
+        "create index if not exists files_owner_user_id_idx on files(owner_user_id)",
+        "create index if not exists files_linked_idx on files(linked_table, linked_id)",
+        "create index if not exists notifications_user_id_idx on notifications(user_id)",
+        "create index if not exists question_bank_training_id_idx on question_bank(training_id)",
+        "create index if not exists assessment_history_user_training_idx on assessment_history(user_id, training_id)",
+        "create index if not exists competency_matrix_user_id_idx on competency_matrix(user_id)",
+        "create index if not exists authorization_requests_user_id_idx on authorization_requests(user_id)",
+        "create index if not exists job_requests_assigned_user_id_idx on job_requests(assigned_user_id)",
+        "create index if not exists kpi_records_user_id_idx on kpi_records(user_id)",
+        "create index if not exists cpd_records_user_id_idx on cpd_records(user_id)",
+    ]
+    for idx in indexes:
+        try:
+            exec_sql(idx)
+        except Exception:
+            pass
 
 
 def audit(action: str, details: str | None = "", result: str = "Success", actor: dict | None = None) -> None:
@@ -703,8 +779,7 @@ def extract_text(name: str, data: bytes) -> str:
 
 
 def create_notification(user_id: str, subject: str, message: str, ntype: str) -> None:
-    users = db_all("users")
-    u = users[users["user_id"] == user_id] if not users.empty else pd.DataFrame()
+    u = db_where("users", "user_id = :user_id", (("user_id", user_id),))
     if u.empty:
         return
     row = u.iloc[0]
@@ -714,27 +789,35 @@ def create_notification(user_id: str, subject: str, message: str, ntype: str) ->
     })
 
 
-def update_training_progress() -> None:
-    records = db_all("training_records")
+def calculate_training_progress(r: pd.Series) -> tuple[int, str, str]:
+    checks = [
+        r.get("slides_opened") == "Yes",
+        r.get("video_opened") == "Yes" or r.get("recording_opened") == "Yes",
+        r.get("live_attendance") in ["Present", "Recording Viewed"],
+        r.get("lms_completed") == "Yes",
+        r.get("test_status") == "Passed",
+        r.get("certificate_status") == "Issued",
+    ]
+    progress = int(sum(checks) / len(checks) * 100)
+    status = "Completed" if progress == 100 else "Pending"
+    completed_on = today() if progress == 100 and not clean(r.get("completed_on")) else clean(r.get("completed_on"))
+    return progress, status, completed_on
+
+
+def update_training_progress(record_id: str | None = None) -> None:
+    """Update one record where possible. Full-table updates made each click very slow."""
+    if record_id:
+        records = db_where("training_records", "record_id = :record_id", (("record_id", record_id),))
+    else:
+        records = db_all("training_records")
     for _, r in records.iterrows():
-        checks = [
-            r["slides_opened"] == "Yes",
-            r["video_opened"] == "Yes" or r["recording_opened"] == "Yes",
-            r["live_attendance"] in ["Present", "Recording Viewed"],
-            r["lms_completed"] == "Yes",
-            r["test_status"] == "Passed",
-            r["certificate_status"] == "Issued",
-        ]
-        progress = int(sum(checks) / len(checks) * 100)
-        patch = {"progress": progress, "status": "Completed" if progress == 100 else "Pending", "updated_on": now()}
-        if progress == 100 and not clean(r["completed_on"]):
-            patch["completed_on"] = today()
+        progress, status, completed_on = calculate_training_progress(r)
+        patch = {"progress": progress, "status": status, "completed_on": completed_on, "updated_on": now()}
         db_update("training_records", "record_id", r["record_id"], patch)
 
 
 def training_complete_for_user(user_id: str) -> bool:
-    records = db_all("training_records")
-    assigned = records[records["user_id"] == user_id] if not records.empty else pd.DataFrame()
+    assigned = db_where("training_records", "user_id = :user_id", (("user_id", user_id),))
     return not assigned.empty and len(assigned[assigned["test_status"] != "Passed"]) == 0
 
 
@@ -847,23 +930,59 @@ h1{{color:#071225;text-align:center;margin-bottom:0}} h2{{text-align:center;colo
 def apply_style() -> None:
     st.markdown("""
     <style>
-    .stApp{background:linear-gradient(180deg,#eef3f8 0%,#f8fafc 100%);color:#0f172a}
-    .block-container{padding-top:1rem;padding-bottom:2rem;max-width:1420px}
-    section[data-testid="stSidebar"]{background:linear-gradient(180deg,#071225 0%,#0b3b76 100%)}
+    :root{--psb-navy:#071225;--psb-blue:#0b3b76;--psb-sky:#124f9e;--psb-card:#ffffff;--psb-line:#dbe3ef;--psb-text:#0f172a;--psb-muted:#64748b}
+    .stApp{background:radial-gradient(circle at top left,#eaf2ff 0,#f8fafc 34%,#eef3f8 100%);color:var(--psb-text)}
+    .block-container{padding-top:1rem;padding-bottom:2.5rem;max-width:1480px}
+    #MainMenu, footer, header[data-testid="stHeader"]{visibility:hidden}
+    section[data-testid="stSidebar"]{background:linear-gradient(180deg,var(--psb-navy) 0%,var(--psb-blue) 72%,#08244b 100%);border-right:1px solid rgba(255,255,255,.10)}
     section[data-testid="stSidebar"] *{color:#f8fafc}
-    div[data-testid="stMetric"]{background:white;border:1px solid #dbe3ef;border-radius:18px;padding:14px;box-shadow:0 10px 30px rgba(15,23,42,.07)}
-    .psb-hero{background:linear-gradient(135deg,#071225,#0b3b76 65%,#124f9e);color:white;padding:1.5rem 1.75rem;border-radius:28px;margin-bottom:1.2rem;box-shadow:0 24px 70px rgba(15,23,42,.22);display:flex;gap:20px;align-items:center;border:1px solid rgba(255,255,255,.16)}
-    .psb-hero img{width:96px;height:96px;border-radius:50%;object-fit:contain;background:white;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
-    .psb-hero h1{margin:0;font-size:2.15rem;letter-spacing:-.025em;font-weight:800}
-    .psb-hero p{color:#dbeafe;margin:.4rem 0 .2rem;font-size:1.02rem}
-    .pill{display:inline-flex;padding:6px 11px;border-radius:999px;background:#e8eef7;color:#0f172a;font-size:12px;font-weight:800;margin:4px 5px 4px 0;border:1px solid #d7e0ec}
+    section[data-testid="stSidebar"] [data-testid="stRadio"] label{font-weight:800;letter-spacing:.02em}
+    section[data-testid="stSidebar"] div[role="radiogroup"] label{border-radius:12px;padding:.35rem .55rem;margin:.12rem 0}
+    section[data-testid="stSidebar"] div[role="radiogroup"] label:hover{background:rgba(255,255,255,.11)}
+    div[data-testid="stMetric"]{background:var(--psb-card);border:1px solid var(--psb-line);border-radius:20px;padding:16px;box-shadow:0 14px 35px rgba(15,23,42,.08)}
+    div[data-testid="stMetric"] label{color:var(--psb-muted)!important;font-weight:700}
+    .psb-hero{background:linear-gradient(135deg,var(--psb-navy),var(--psb-blue) 62%,var(--psb-sky));color:white;padding:1.55rem 1.85rem;border-radius:30px;margin-bottom:1.3rem;box-shadow:0 26px 75px rgba(15,23,42,.25);display:flex;gap:20px;align-items:center;border:1px solid rgba(255,255,255,.17)}
+    .psb-hero img{width:96px;height:96px;border-radius:50%;object-fit:contain;background:white;padding:6px;box-shadow:0 14px 34px rgba(0,0,0,.25)}
+    .psb-hero h1{margin:0;font-size:2.18rem;letter-spacing:-.035em;font-weight:900}
+    .psb-hero p{color:#dbeafe;margin:.42rem 0 .25rem;font-size:1.03rem}
+    .pill{display:inline-flex;padding:6px 12px;border-radius:999px;background:#e8eef7;color:#0f172a;font-size:12px;font-weight:800;margin:4px 5px 4px 0;border:1px solid #d7e0ec;white-space:nowrap}
     .psb-hero .pill{background:rgba(255,255,255,.14);color:white;border:1px solid rgba(255,255,255,.24)}
-    .step{border-left:5px solid #0b3b76;background:white;border-radius:16px;padding:.85rem 1rem;margin:.45rem 0;box-shadow:0 10px 30px rgba(15,23,42,.06)}
-    .login-wrap{max-width:590px;margin:2rem auto;background:white;padding:2.2rem;border-radius:30px;box-shadow:0 28px 80px rgba(15,23,42,.18);text-align:center;border:1px solid #dbe3ef}
-    .stButton>button,.stDownloadButton>button{border-radius:12px;border:1px solid #0b3b76;background:#0b3b76;color:white;font-weight:700}
-    .stButton>button:hover,.stDownloadButton>button:hover{background:#071225;color:white;border-color:#071225}
-    div[data-testid="stDataFrame"]{border-radius:18px;overflow:hidden;border:1px solid #dbe3ef}
-    h1,h2,h3{letter-spacing:-.02em}
+    .step{border-left:5px solid var(--psb-blue);background:white;border-radius:18px;padding:.9rem 1rem;margin:.48rem 0;box-shadow:0 12px 32px rgba(15,23,42,.07)}
+    .psb-card{background:white;border:1px solid var(--psb-line);border-radius:22px;padding:1rem 1.1rem;margin:.65rem 0;box-shadow:0 12px 32px rgba(15,23,42,.07)}
+    .psb-section-title{font-size:1.02rem;font-weight:900;color:var(--psb-blue);margin:.25rem 0 .65rem}
+    .login-shell{min-height:calc(100vh - 3.5rem);display:flex;align-items:center;justify-content:center;padding:1.5rem 0 2.8rem}
+    .login-frame{width:min(1180px,96vw);display:grid;grid-template-columns:1.08fr .92fr;gap:0;background:rgba(255,255,255,.84);border:1px solid rgba(219,227,239,.95);border-radius:36px;overflow:hidden;box-shadow:0 38px 110px rgba(7,18,37,.22);backdrop-filter:blur(14px)}
+    .login-brand{position:relative;padding:3rem 2.8rem;color:white;background:radial-gradient(circle at 18% 18%,rgba(245,180,51,.30),transparent 25%),linear-gradient(135deg,#06162f 0%,#082b59 52%,#0b4b91 100%);min-height:650px;display:flex;flex-direction:column;justify-content:space-between}
+    .login-brand:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.08) 0 1px,transparent 1px 18px),radial-gradient(circle at 86% 14%,rgba(255,255,255,.20),transparent 20%);opacity:.7;pointer-events:none}
+    .brand-content,.brand-footer{position:relative;z-index:1}
+    .login-logo-row{display:flex;align-items:center;gap:16px;margin-bottom:2rem}
+    .login-logo-row img{width:86px;height:86px;border-radius:22px;background:white;padding:8px;object-fit:contain;box-shadow:0 18px 45px rgba(0,0,0,.28)}
+    .login-kicker{font-size:.78rem;font-weight:900;text-transform:uppercase;letter-spacing:.18em;color:#f5b433;margin-bottom:.4rem}
+    .login-brand h1{margin:0;font-size:2.65rem;line-height:1.04;letter-spacing:-.055em;color:white;font-weight:950}
+    .login-brand p{font-size:1.03rem;line-height:1.65;color:#dbeafe;max-width:610px;margin:1.05rem 0}
+    .login-badges{display:flex;gap:9px;flex-wrap:wrap;margin:1.25rem 0 0}
+    .login-badge{display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);border-radius:999px;padding:7px 11px;color:#fff;font-size:.78rem;font-weight:850}
+    .login-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:1.5rem}
+    .login-feature{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);border-radius:18px;padding:13px 14px;color:#eaf2ff}
+    .login-feature b{display:block;color:white;font-size:.92rem;margin-bottom:4px}.login-feature span{font-size:.78rem;color:#cfe1ff}
+    .brand-footer{border-top:1px solid rgba(255,255,255,.18);padding-top:1rem;color:#cbd5e1;font-size:.82rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .login-panel{padding:3rem 2.6rem;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);display:flex;flex-direction:column;justify-content:center}
+    .login-card{background:white;border:1px solid #dce6f2;border-radius:30px;padding:2rem;box-shadow:0 18px 55px rgba(15,23,42,.10)}
+    .login-card h2{font-size:1.75rem;margin:0 0 .35rem;color:#071225;font-weight:950}.login-card .muted{color:#64748b;margin:0 0 1.25rem;line-height:1.55}
+    .login-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:1.1rem 0 0}.login-mini div{background:#f1f5f9;border:1px solid #dbe3ef;border-radius:16px;padding:10px;text-align:center}.login-mini b{display:block;color:#0b3b76;font-size:1rem}.login-mini span{font-size:.70rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+    .login-help{margin-top:1rem;padding:12px 14px;border-radius:18px;background:#fff8eb;border:1px solid #f3d79a;color:#6b4b0b;font-size:.86rem;line-height:1.5}
+    .login-card div[data-testid="stForm"]{border:0;padding:0}.login-card label{font-weight:850;color:#0f172a!important}.login-card input{border-radius:14px!important}
+    .login-card .stButton>button{width:100%;height:3rem;border-radius:16px;background:linear-gradient(135deg,#071225,#0b3b76);border:0;color:white;font-weight:950;letter-spacing:.02em;box-shadow:0 14px 32px rgba(11,59,118,.24)}
+    .login-card .stButton>button:hover{background:linear-gradient(135deg,#04101f,#08315f);transform:translateY(-1px)}
+    .login-demo{margin-top:1rem}.login-demo div[data-testid="stExpander"]{box-shadow:none;border-radius:18px;background:#f8fafc}
+    @media(max-width:920px){.login-frame{grid-template-columns:1fr}.login-brand{min-height:auto;padding:2.1rem}.login-panel{padding:1.4rem}.login-brand h1{font-size:2rem}.login-feature-grid{grid-template-columns:1fr}.login-mini{grid-template-columns:1fr}}
+    .stButton>button,.stDownloadButton>button{border-radius:13px;border:1px solid var(--psb-blue);background:var(--psb-blue);color:white;font-weight:800;box-shadow:0 8px 18px rgba(11,59,118,.16)}
+    .stButton>button:hover,.stDownloadButton>button:hover{background:var(--psb-navy);color:white;border-color:var(--psb-navy)}
+    div[data-testid="stDataFrame"]{border-radius:18px;overflow:hidden;border:1px solid var(--psb-line);box-shadow:0 10px 26px rgba(15,23,42,.05)}
+    div[data-testid="stExpander"]{border-radius:18px;border:1px solid var(--psb-line);background:white;box-shadow:0 8px 22px rgba(15,23,42,.04)}
+    .stTabs [data-baseweb="tab-list"]{gap:8px}
+    .stTabs [data-baseweb="tab"]{border-radius:999px;background:#e8eef7;padding:.45rem 1rem;font-weight:800}
+    h1,h2,h3{letter-spacing:-.025em;color:#0f172a}
     </style>
     """, unsafe_allow_html=True)
 
@@ -878,8 +997,15 @@ def header() -> None:
     """, unsafe_allow_html=True)
 
 
-def table(df: pd.DataFrame) -> None:
-    st.dataframe(df.fillna(""), width="stretch", hide_index=True)
+def table(df: pd.DataFrame, max_rows: int = 300) -> None:
+    if df is None or df.empty:
+        st.caption("No records found.")
+        return
+    shown = df.fillna("")
+    if len(shown) > max_rows:
+        st.caption(f"Showing latest {max_rows} of {len(shown)} records for faster loading. Use Backup/Export for full data.")
+        shown = shown.tail(max_rows)
+    st.dataframe(shown, width="stretch", hide_index=True)
 
 
 def metrics(items):
@@ -893,29 +1019,60 @@ def login_page() -> None:
         a, b = random.randint(2, 12), random.randint(2, 12)
         st.session_state["captcha_question"] = f"{a} + {b}"
         st.session_state["captcha_answer"] = str(a + b)
-    st.markdown("<div class='login-wrap'>", unsafe_allow_html=True)
-    if LOGO_PATH.exists():
-        st.image(str(LOGO_PATH), width=115)
-    st.title("Pakistan Shipping Bureau")
-    st.subheader("Classification Society Competency Platform")
-    with st.form("login"):
-        login = st.text_input("Login ID or Email")
-        password = st.text_input("Password", type="password")
-        captcha = st.text_input(f"Security Verification: {st.session_state['captcha_question']} = ?")
-        submit = st.form_submit_button("Login")
+
+    logo_html = f"<img src='{logo_data_uri()}' alt='PSB Logo' />" if LOGO_PATH.exists() else ""
+    standards_html = "".join([f"<span class='login-badge'>{s}</span>" for s in STANDARDS[:6]])
+
+    st.markdown(f"""
+    <div class='login-shell'>
+      <div class='login-frame'>
+        <section class='login-brand'>
+          <div class='brand-content'>
+            <div class='login-logo-row'>
+              {logo_html}
+              <div>
+                <div class='login-kicker'>Maritime Training & Competency</div>
+                <div style='font-weight:900;color:#fff;font-size:1.05rem'>Pakistan Shipping Bureau</div>
+              </div>
+            </div>
+            <h1>Classification Society HRDM Platform</h1>
+            <p>Professional training, competency authorization, survey readiness, audit evidence, and compliance workflow management for maritime technical operations.</p>
+            <div class='login-badges'>{standards_html}</div>
+            <div class='login-feature-grid'>
+              <div class='login-feature'><b>Training Control</b><span>Schedules, materials, attendance, recordings and completion evidence.</span></div>
+              <div class='login-feature'><b>Competency Matrix</b><span>Role-wise authorization, OJT tracking and approval gates.</span></div>
+              <div class='login-feature'><b>Survey Workflow</b><span>Plan appraisal, new building and in-service survey alignment.</span></div>
+              <div class='login-feature'><b>Audit Ready</b><span>Digital trail, QR certificates, QMS review and management dashboards.</span></div>
+            </div>
+          </div>
+          <div class='brand-footer'>
+            <span>Secure Role-Based Access</span><span>Supabase / PostgreSQL Ready</span><span>Render Deployment Ready</span>
+          </div>
+        </section>
+        <section class='login-panel'>
+          <div class='login-card'>
+            <h2>Welcome Back</h2>
+            <p class='muted'>Sign in to access your dashboard, assigned trainings, competency records, surveys, approvals and management reports.</p>
+    """, unsafe_allow_html=True)
+
+    with st.form("login", clear_on_submit=False):
+        login = st.text_input("Login ID or Email", placeholder="Enter your login ID or official email")
+        password = st.text_input("Password", type="password", placeholder="Enter your password")
+        captcha = st.text_input(f"Security Verification: {st.session_state['captcha_question']} = ?", placeholder="Answer")
+        submit = st.form_submit_button("Sign in to PSB Portal")
+
     if submit:
         if captcha.strip() != st.session_state.get("captcha_answer", ""):
-            st.error("Security verification failed.")
+            st.error("Security verification failed. Please try again.")
             st.stop()
-        users = db_all("users")
-        match = users[
-            ((users["login_id"].astype(str).str.lower() == login.lower().strip()) |
-             (users["email"].astype(str).str.lower() == login.lower().strip())) &
-            (users["password_hash"].astype(str) == phash(password.strip())) &
-            (users["status"].astype(str) == "Active")
-        ] if not users.empty else pd.DataFrame()
+        login_key = login.lower().strip()
+        match = db_where(
+            "users",
+            "(lower(login_id) = :login_key or lower(email) = :login_key) and password_hash = :password_hash and status = 'Active'",
+            (("login_key", login_key), ("password_hash", phash(password.strip()))),
+        )
         if match.empty:
-            st.error("Invalid login.")
+            st.error("Invalid login ID/email or password.")
         else:
             user = match.iloc[0].to_dict()
             st.session_state["logged_in"] = True
@@ -923,6 +1080,18 @@ def login_page() -> None:
             db_update("users", "user_id", user["user_id"], {"last_login": now()})
             audit("User Login", f"{user['name']} logged in", actor=user)
             st.rerun()
+
+    st.markdown("""
+            <div class='login-mini'>
+              <div><b>ISO</b><span>QMS Ready</span></div>
+              <div><b>IACS</b><span>Workflow</span></div>
+              <div><b>IMO</b><span>RO Code</span></div>
+            </div>
+            <div class='login-help'>For official use only. Trainees get read-only access to assigned materials, schedules and recordings. Editing rights remain restricted to authorized roles.</div>
+          </div>
+          <div class='login-demo'>
+    """, unsafe_allow_html=True)
+
     with st.expander("Default Demo Logins"):
         st.code("""admin / Admin@1234
 trainer / Trainer@1234
@@ -934,8 +1103,13 @@ coordinator / Coord@1234
 surveyor / Surveyor@1234
 appraiser / Appraiser@1234
 management / Mgmt@1234""")
-    st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("""
+          </div>
+        </section>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def require_login() -> dict:
     if "logged_in" not in st.session_state:
@@ -982,12 +1156,18 @@ def dashboard_page(actor):
     users = db_all("users"); trainings = db_all("trainings"); records = db_all("training_records")
     comp = db_all("competency_matrix"); auths = db_all("authorization_requests"); jobs = db_all("job_requests")
     cpd = db_all("cpd_records"); kpi = db_all("kpi_records")
+    notifications = db_all("notifications")
     metrics([
         ("Users", len(users)), ("Trainings", len(trainings)), ("Training Records", len(records)),
         ("Competencies", len(comp)), ("Approved Auth", len(auths[auths["status"]=="Management Approved"]) if not auths.empty else 0),
         ("Jobs Assigned", len(jobs[jobs["status"]=="Assigned"]) if not jobs.empty else 0),
         ("CPD Records", len(cpd)), ("KPI Records", len(kpi)),
     ])
+    my_notifications = notifications[notifications["user_id"] == actor_get(actor, "user_id")] if not notifications.empty else pd.DataFrame()
+    if not my_notifications.empty:
+        st.subheader("My Notifications / Messages")
+        show_cols = [c for c in ["created_on", "subject", "message", "type", "status"] if c in my_notifications.columns]
+        table(my_notifications.sort_values("created_on", ascending=False).head(10)[show_cols])
     st.subheader("World-Class Qualification Flow")
     for i, s in enumerate([
         "Admin assigns role, path, mentor and authorization matrix.",
@@ -1336,7 +1516,13 @@ def training_page(actor):
                         "passing_marks": tr_row["passing_marks"], "certificate_status": "Not Issued", "certificate_link": "",
                         "due_date": str(due), "completed_on": "", "progress": 0, "remarks": "Assigned", "updated_on": now(),
                     })
-                    create_notification(uidv, f"Training Assigned: {tr_row['title']}", f"Training due on {due}", "Training")
+                    assignment_msg = (
+                        f"You have been assigned training: {tr_row['title']}. "
+                        f"Schedule: {clean(tr_row.get('schedule_date')) or 'To be announced'} "
+                        f"at {clean(tr_row.get('schedule_time')) or 'To be announced'}. "
+                        f"Due date: {due}. Please open the Training Management page to access read-only materials, meeting link, recording link and assessment."
+                    )
+                    create_notification(uidv, f"Training Assigned: {tr_row['title']}", assignment_msg, "Training")
                     added += 1
                 st.success(f"{added} persons assigned.")
         with tabs[3]:
@@ -1350,53 +1536,140 @@ def training_page(actor):
                     uidv = person.split(" — ")[-1]
                     rr = assigned[assigned["user_id"] == uidv].iloc[0]
                     db_update("training_records", "record_id", rr["record_id"], {"live_attendance": att, "updated_on": now()})
-                    update_training_progress()
+                    update_training_progress(rr["record_id"])
                     st.success("Attendance saved.")
     else:
         trainee_training(actor, tid)
 
 
 def trainee_training(actor, tid):
-    rec = db_all("training_records"); tr = db_all("trainings"); qbank = db_all("question_bank")
+    """Read-only trainee view.
+    Trainees can see assigned training schedule and materials, but cannot edit course data.
+    Opening/confirming material updates only their own training record.
+    """
     uidv = actor_get(actor, "user_id")
-    rr = rec[(rec["user_id"] == uidv) & (rec["training_id"] == tid)] if not rec.empty else pd.DataFrame()
+    rr = db_where("training_records", "user_id = :user_id and training_id = :training_id", (("user_id", uidv), ("training_id", tid)))
     if rr.empty:
         st.warning("Training not assigned.")
         return
-    row = rr.iloc[0]; tr_row = tr[tr["training_id"] == tid].iloc[0]
-    metrics([("Progress", f"{row['progress']}%"), ("LMS", row["lms_completed"]), ("Test", row["test_status"]), ("Certificate", row["certificate_status"])])
-    c1,c2,c3,c4 = st.columns(4)
-    if c1.button("Mark Slides Complete"):
-        db_update("training_records","record_id",row["record_id"],{"slides_opened":"Yes"}); update_training_progress(); st.rerun()
-    if c2.button("Mark Video Complete"):
-        db_update("training_records","record_id",row["record_id"],{"video_opened":"Yes"}); update_training_progress(); st.rerun()
-    if c3.button("Mark Recording Complete"):
-        db_update("training_records","record_id",row["record_id"],{"recording_opened":"Yes","video_opened":"Yes","live_attendance":"Recording Viewed"}); update_training_progress(); st.rerun()
-    if c4.button("Mark LMS/SCORM Complete"):
-        db_update("training_records","record_id",row["record_id"],{"lms_completed":"Yes"}); update_training_progress(); st.rerun()
-    qs = qbank[qbank["training_id"] == tid] if not qbank.empty else pd.DataFrame()
+    tr = db_where("trainings", "training_id = :training_id", (("training_id", tid),))
+    if tr.empty:
+        st.warning("Training details not found.")
+        return
+
+    row = rr.iloc[0]
+    tr_row = tr.iloc[0]
+    record_id = row["record_id"]
+    is_absent = clean(row.get("live_attendance")) == "Absent"
+
+    st.subheader(clean(tr_row["title"]))
+    metrics([
+        ("Progress", f"{row['progress']}%"),
+        ("Attendance", clean(row.get("live_attendance", "Not Marked"))),
+        ("LMS", row["lms_completed"]),
+        ("Test", row["test_status"]),
+    ])
+
+    st.info(
+        f"Schedule: {clean(tr_row.get('schedule_date')) or 'Not scheduled'} "
+        f"at {clean(tr_row.get('schedule_time')) or 'Not specified'} | "
+        f"Trainer: {clean(tr_row.get('trainer_name')) or 'Not assigned'} | Due: {clean(row.get('due_date'))}"
+    )
+
+    st.markdown("### Live Session")
+    meeting_link = clean(tr_row.get("meeting_link"))
+    if meeting_link:
+        st.link_button("Join / Open Meeting Link", meeting_link)
+    else:
+        st.caption("Meeting link is not available yet.")
+
+    st.markdown("### Training Material (Read Only)")
+    c1, c2, c3, c4 = st.columns(4)
+    slides_link = clean(tr_row.get("slides_link"))
+    video_link = clean(tr_row.get("video_link"))
+    reference_link = clean(tr_row.get("reference_link"))
+    scorm_link = clean(tr_row.get("scorm_package_link"))
+
+    if slides_link:
+        c1.link_button("Open Slides", slides_link)
+        if c1.button("Confirm Slides Completed", key=f"slides_done_{record_id}"):
+            db_update("training_records", "record_id", record_id, {"slides_opened": "Yes", "updated_on": now()})
+            update_training_progress(record_id); st.rerun()
+    else:
+        c1.caption("Slides not uploaded.")
+
+    if video_link:
+        c2.link_button("Open Video", video_link)
+        if c2.button("Confirm Video Completed", key=f"video_done_{record_id}"):
+            db_update("training_records", "record_id", record_id, {"video_opened": "Yes", "updated_on": now()})
+            update_training_progress(record_id); st.rerun()
+    else:
+        c2.caption("Video not uploaded.")
+
+    if reference_link:
+        c3.link_button("Open Reference", reference_link)
+    else:
+        c3.caption("Reference link not uploaded.")
+
+    if scorm_link:
+        c4.link_button("Open LMS/SCORM", scorm_link)
+        if c4.button("Confirm LMS Completed", key=f"lms_done_{record_id}"):
+            db_update("training_records", "record_id", record_id, {"lms_completed": "Yes", "updated_on": now()})
+            update_training_progress(record_id); st.rerun()
+    else:
+        c4.caption("LMS/SCORM link not uploaded.")
+
+    linked_files = db_where("files", "linked_table = :linked_table and linked_id = :linked_id", (("linked_table", "trainings"), ("linked_id", tid)))
+    if not linked_files.empty:
+        st.markdown("#### Uploaded Documents / Files")
+        for _, f in linked_files.iterrows():
+            file_url = clean(f.get("public_url"))
+            file_name = clean(f.get("file_name"))
+            if file_url:
+                st.link_button(f"Open {file_name}", file_url)
+            else:
+                st.caption(file_name)
+
+    st.markdown("### Recording for Absent / Revision")
+    recording_link = clean(tr_row.get("recording_link"))
+    if recording_link:
+        st.link_button("Open Recording", recording_link)
+        if st.button("Confirm Recording Viewed", key=f"recording_done_{record_id}"):
+            patch = {"recording_opened": "Yes", "video_opened": "Yes", "updated_on": now()}
+            if is_absent or clean(row.get("live_attendance")) in ["Not Marked", ""]:
+                patch["live_attendance"] = "Recording Viewed"
+            db_update("training_records", "record_id", record_id, patch)
+            update_training_progress(record_id); st.rerun()
+    elif is_absent:
+        st.warning("You were marked absent. Recording will appear here after the trainer uploads/pastes the recording link.")
+    else:
+        st.caption("Recording link is not available yet.")
+
+    st.markdown("### Assessment")
+    qs = db_where("question_bank", "training_id = :training_id", (("training_id", tid),))
     if qs.empty:
-        st.warning("MCQs not generated.")
+        st.warning("MCQs not generated yet.")
         return
     if row["test_status"] == "Passed":
         st.success("Assessment already passed.")
         return
-    history = db_all("assessment_history")
-    attempts = len(history[(history["user_id"] == uidv) & (history["training_id"] == tid)]) if not history.empty else 0
-    with st.form("assessment"):
+
+    history = db_where("assessment_history", "user_id = :user_id and training_id = :training_id", (("user_id", uidv), ("training_id", tid)))
+    attempts = len(history) if not history.empty else 0
+    with st.form(f"assessment_{tid}_{uidv}"):
         answers = {}
         for i, (_, q) in enumerate(qs.iterrows(), 1):
             st.markdown(f"**Q{i}. {q['question']}**")
             opts = [q["option_a"], q["option_b"], q["option_c"], q["option_d"]]
-            answers[q["question_id"]] = st.radio("Select", opts, key=q["question_id"], label_visibility="collapsed")
+            answers[q["question_id"]] = st.radio("Select", opts, key=f"{tid}_{uidv}_{q['question_id']}", label_visibility="collapsed")
         submit = st.form_submit_button("Submit Assessment")
     if submit:
         correct = sum(1 for _, q in qs.iterrows() if answers.get(q["question_id"]) == q["correct_answer"])
         score = round(correct / len(qs) * 100, 2)
         result = "Passed" if score >= int(tr_row["passing_marks"]) else "Failed"
         db_insert("assessment_history", {"assessment_id": uid("ASM"), "user_id": uidv, "name": actor_get(actor,"name"), "training_id": tid, "training_title": tr_row["title"], "attempt_no": attempts+1, "score": score, "result": result, "attempted_on": now(), "next_retest_allowed": str(date.today()+timedelta(days=7)) if result=="Failed" else "", "remarks": f"Correct {correct}/{len(qs)}"})
-        db_update("training_records","record_id",row["record_id"],{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}"})
-        update_training_progress()
+        db_update("training_records","record_id",record_id,{"score":score,"test_status":result,"certificate_status":"Issued" if result=="Passed" else "Not Issued","certificate_link":f"{PUBLIC_URL}/training-certificates/{uidv}/{tid}" if result=="Passed" else "","remarks":f"Correct {correct}/{len(qs)}", "updated_on": now()})
+        update_training_progress(record_id)
         st.success(f"{result}: {score}%")
         st.rerun()
 
@@ -2048,7 +2321,7 @@ def succession_planning_page(actor):
             successor_for=st.text_input("Successor For / Position"); ready=st.selectbox("Readiness", ["Ready Now","Ready in 6 Months","Ready in 1 Year","Ready in 2 Years","Long-term Potential"])
             actions=st.text_area("Development Actions"); ready_date=st.date_input("Expected Ready Date", date.today()+timedelta(days=365)); sponsor=st.text_input("Sponsor", actor_get(actor,"name"))
             if st.form_submit_button("Save Succession Plan") and uidv:
-                db_insert("succession_plans", {"succession_id": uid("SUC"), "user_id": uidv, "name": name, "current_role": row.get("role",""), "target_role": target, "readiness_level": ready, "successor_for": successor_for, "development_actions": actions, "expected_ready_date": str(ready_date), "sponsor": sponsor, "status": "Active", "created_on": now()})
+                db_insert("succession_plans", {"succession_id": uid("SUC"), "user_id": uidv, "name": name, "current_role_name": row.get("role",""), "target_role": target, "readiness_level": ready, "successor_for": successor_for, "development_actions": actions, "expected_ready_date": str(ready_date), "sponsor": sponsor, "status": "Active", "created_on": now()})
                 st.success("Succession plan saved.")
     table(db_all("succession_plans"))
 
