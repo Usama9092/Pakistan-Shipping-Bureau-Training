@@ -1036,23 +1036,16 @@ def login_page() -> None:
               </div>
             </div>
             <h1>Classification Society HRDM Platform</h1>
-            <p>Professional training, competency authorization, survey readiness, audit evidence, and compliance workflow management for maritime technical operations.</p>
             <div class='login-badges'>{standards_html}</div>
-            <div class='login-feature-grid'>
-              <div class='login-feature'><b>Training Control</b><span>Schedules, materials, attendance, recordings and completion evidence.</span></div>
-              <div class='login-feature'><b>Competency Matrix</b><span>Role-wise authorization, OJT tracking and approval gates.</span></div>
-              <div class='login-feature'><b>Survey Workflow</b><span>Plan appraisal, new building and in-service survey alignment.</span></div>
-              <div class='login-feature'><b>Audit Ready</b><span>Digital trail, QR certificates, QMS review and management dashboards.</span></div>
-            </div>
           </div>
           <div class='brand-footer'>
-            <span>Secure Role-Based Access</span><span>Supabase / PostgreSQL Ready</span><span>Render Deployment Ready</span>
+            <span>Secure Role-Based Access</span><span>ISO / IACS Ready</span>
           </div>
         </section>
         <section class='login-panel'>
           <div class='login-card'>
-            <h2>Welcome Back</h2>
-            <p class='muted'>Sign in to access your dashboard, assigned trainings, competency records, surveys, approvals and management reports.</p>
+            <h2>Sign In</h2>
+            <p class='muted'>Access your account</p>
     """, unsafe_allow_html=True)
 
     with st.form("login", clear_on_submit=False):
@@ -1083,33 +1076,16 @@ def login_page() -> None:
 
     st.markdown("""
             <div class='login-mini'>
-              <div><b>ISO</b><span>QMS Ready</span></div>
-              <div><b>IACS</b><span>Workflow</span></div>
+              <div><b>ISO</b><span>QMS</span></div>
+              <div><b>IACS</b><span>Standards</span></div>
               <div><b>IMO</b><span>RO Code</span></div>
             </div>
-            <div class='login-help'>For official use only. Trainees get read-only access to assigned materials, schedules and recordings. Editing rights remain restricted to authorized roles.</div>
-          </div>
-          <div class='login-demo'>
-    """, unsafe_allow_html=True)
-
-    with st.expander("Default Demo Logins"):
-        st.code("""admin / Admin@1234
-trainer / Trainer@1234
-tutor / Tutor@1234
-technical / Tech@1234
-principal / Principal@1234
-qmr / QMR@1234
-coordinator / Coord@1234
-surveyor / Surveyor@1234
-appraiser / Appraiser@1234
-management / Mgmt@1234""")
-
-    st.markdown("""
           </div>
         </section>
       </div>
     </div>
     """, unsafe_allow_html=True)
+
 
 def require_login() -> dict:
     if "logged_in" not in st.session_state:
