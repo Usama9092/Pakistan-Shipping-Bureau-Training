@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import time
 from pathlib import Path
 from urllib.parse import quote_plus
 import base64
@@ -19,6 +20,7 @@ import functools
 import pandas as pd
 import qrcode
 import streamlit as st
+import streamlit.components.v1 as components
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -52,6 +54,37 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "psb-hrdm-files")
 LOGO_PATH = Path("assets/psb-logo.png")
 LOCAL_UPLOAD_DIR = Path("local_uploads")
+DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "")
+MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
+LOGIN_BLOCK_MINUTES = int(os.getenv("LOGIN_BLOCK_MINUTES", "5"))
+SAFE_TABLE_RE = re.compile(r"^[a-zA-Z0-9_]+$")
+SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]+")
+ACTIVE_SESSIONS: dict[str, dict[str, object]] = {}
+
+
+# Simple in-memory rate limiter for UI actions (per-user key)
+class RateLimiter:
+    def __init__(self):
+        # store action -> key -> list[timestamps]
+        self._calls: dict[str, dict[str, list[float]]] = {}
+
+    def _prune(self, lst: list[float], window: float) -> list[float]:
+        cutoff = time.time() - window
+        return [t for t in lst if t >= cutoff]
+
+    def allowed(self, action: str, key: str, limit: int, per_seconds: int) -> bool:
+        now_ts = time.time()
+        self._calls.setdefault(action, {})
+        self._calls[action].setdefault(key, [])
+        calls = self._prune(self._calls[action][key], per_seconds)
+        if len(calls) >= limit:
+            return False
+        calls.append(now_ts)
+        self._calls[action][key] = calls
+        return True
+
+
+RATE_LIMITER = RateLimiter()
 
 APP_ENV = os.getenv("APP_ENV", "production" if os.getenv("RENDER") else "local").lower()
 
@@ -245,6 +278,59 @@ def clean(v) -> str:
     return str(v)
 
 
+def validate_table_name(table: str) -> None:
+    if not SAFE_TABLE_RE.fullmatch(clean(table)):
+        raise ValueError("Invalid table name.")
+
+
+def sanitize_path_component(value: str) -> str:
+    value = clean(value).replace("\\", "/").split("/")[-1]
+    value = SAFE_FILENAME_RE.sub("_", value).strip("._-")
+    return value or "item"
+
+
+def sanitize_filename(name: str) -> str:
+    name = clean(name).replace("\\", "/").split("/")[-1]
+    name = SAFE_FILENAME_RE.sub("_", name).strip("._-")
+    return name or "upload"
+
+
+def validate_email(email: str) -> bool:
+    return bool(re.fullmatch(r"[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+", clean(email)))
+
+
+def create_auth_token(user_id: str) -> str:
+    token = secrets.token_urlsafe(24)
+    ACTIVE_SESSIONS[token] = {"user_id": user_id, "created_on": datetime.utcnow()}
+    return token
+
+
+def resolve_auth_token(token: str) -> str | None:
+    token = clean(token)
+    session = ACTIVE_SESSIONS.get(token)
+    if not session:
+        return None
+    created = session.get("created_on")
+    if isinstance(created, datetime) and datetime.utcnow() - created > timedelta(days=1):
+        ACTIVE_SESSIONS.pop(token, None)
+        return None
+    return session.get("user_id")
+
+
+def clear_auth_token() -> None:
+    try:
+        params = st.experimental_get_query_params()
+        params.pop("auth_token", None)
+        st.experimental_set_query_params(**params)
+    except Exception:
+        pass
+    st.session_state.pop("auth_token", None)
+    try:
+        components.html("<script>document.cookie = 'psb_auth=; path=/; Max-Age=0;';</script>", height=0)
+    except Exception:
+        pass
+
+
 def phash(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
@@ -340,6 +426,7 @@ def db_all(table: str) -> pd.DataFrame:
     The cache is cleared after insert/update/delete operations below.
     """
     try:
+        validate_table_name(table)
         return query_sql(f"select * from {table}")
     except Exception:
         return pd.DataFrame()
@@ -348,6 +435,7 @@ def db_all(table: str) -> pd.DataFrame:
 def db_where(table: str, where_sql: str, params_tuple: tuple[tuple[str, object], ...] = ()) -> pd.DataFrame:
     """Cached filtered read. Use this on interactive pages instead of loading full tables."""
     try:
+        validate_table_name(table)
         params = dict(params_tuple)
         return query_sql(f"select * from {table} where {where_sql}", params)
     except Exception:
@@ -386,6 +474,7 @@ def convert_numpy_types(row: dict) -> dict:
 
 
 def db_insert(table: str, row: dict) -> None:
+    validate_table_name(table)
     row = convert_numpy_types(row)
     cols = list(row.keys())
     exec_sql(
@@ -398,6 +487,7 @@ def db_insert(table: str, row: dict) -> None:
 def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
     if not row:
         return
+    validate_table_name(table)
     patch = dict(row)
     patch[id_col] = id_val
     patch = convert_numpy_types(patch)
@@ -407,6 +497,7 @@ def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
 
 
 def db_delete(table: str, id_col: str, id_val: str) -> None:
+    validate_table_name(table)
     exec_sql(f"delete from {table} where {id_col} = :id", {"id": id_val})
     clear_db_cache()
 
@@ -671,10 +762,11 @@ def seed_demo() -> None:
         ("USR-APPRAISER", "Sample Trainee Plan Appraiser", "Trainee", "Trainee Plan Appraisal Engineer", "Plan Appraisal", "Electrical Plan Approval Path", "appraiser@psbureau.org", "appraiser", "Appraiser@1234", "USR-TUTOR", "Senior Surveyor Tutor"),
     ]
     for u in demo_users:
+        password = DEFAULT_ADMIN_PASSWORD or temp_password(12)
         db_insert("users", {
             "user_id": u[0], "name": u[1], "role": u[2], "trainee_path": u[3], "department": u[4],
-            "assigned_duty": u[5], "email": u[6], "login_id": u[7], "password_hash": phash(u[8]),
-            "temp_password": u[8], "status": "Active", "availability": "Available", "current_location": "Karachi",
+            "assigned_duty": u[5], "email": u[6], "login_id": u[7], "password_hash": phash(password),
+            "temp_password": "", "status": "Active", "availability": "Available", "current_location": "Karachi",
             "mentor_id": u[9], "mentor_name": u[10], "competency_level": "Level 0 - Trainee",
             "created_on": today(), "last_login": "",
         })
@@ -708,12 +800,23 @@ def seed_demo() -> None:
 
 
 def upload_file(uploaded_file, actor: dict, linked_table: str, linked_id: str, category: str) -> dict:
+    # basic per-user rate limiting for uploads
+    try:
+        user_key = actor_get(actor, "user_id") or "anon"
+        if not RATE_LIMITER.allowed("upload", user_key, limit=15, per_seconds=60):
+            raise RuntimeError("Rate limit exceeded for uploads. Try again later.")
+    except Exception:
+        # on any limiter error, allow to continue (do not block app startup) or re-raise
+        pass
     file_id = uid("FILE")
     ext = uploaded_file.name.split(".")[-1].lower() if "." in uploaded_file.name else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError(f"File type .{ext} is not allowed.")
     data = uploaded_file.getvalue()
-    storage_path = f"{category.replace(' ', '_').lower()}/{linked_table}/{linked_id}/{file_id}_{uploaded_file.name}"
+    linked_table = sanitize_path_component(linked_table)
+    linked_id = sanitize_path_component(linked_id)
+    filename = sanitize_filename(uploaded_file.name)
+    storage_path = f"{sanitize_path_component(category)}/{linked_table}/{linked_id}/{file_id}_{filename}"
     provider = "local"
     public_url = ""
     client = get_supabase_client()
@@ -934,7 +1037,8 @@ def apply_style() -> None:
     .stApp{background:radial-gradient(circle at top left,#eaf2ff 0,#f8fafc 34%,#eef3f8 100%);color:var(--psb-text)}
     .block-container{padding-top:1rem;padding-bottom:2.5rem;max-width:1480px}
     #MainMenu, footer, header[data-testid="stHeader"]{visibility:hidden}
-    section[data-testid="stSidebar"]{background:linear-gradient(180deg,var(--psb-navy) 0%,var(--psb-blue) 72%,#08244b 100%);border-right:1px solid rgba(255,255,255,.10)}
+    button[title="Toggle sidebar"], button[aria-label="Toggle sidebar"], button[aria-label="Collapse sidebar"], button[aria-label="Expand sidebar"], div[role="button"][aria-label*="sidebar"]{display:none!important}
+    section[data-testid="stSidebar"]{background:linear-gradient(180deg,var(--psb-navy) 0%,var(--psb-blue) 72%,#08244b 100%);border-right:1px solid rgba(255,255,255,.10);visibility:visible!important}
     section[data-testid="stSidebar"] *{color:#f8fafc}
     section[data-testid="stSidebar"] [data-testid="stRadio"] label{font-weight:800;letter-spacing:.02em}
     section[data-testid="stSidebar"] div[role="radiogroup"] label{border-radius:12px;padding:.35rem .55rem;margin:.12rem 0}
@@ -1048,6 +1152,13 @@ def login_page() -> None:
             <p class='muted'>Access your account</p>
     """, unsafe_allow_html=True)
 
+    login_attempts = st.session_state.get("login_attempts", 0)
+    blocked_until = st.session_state.get("login_blocked_until")
+    now_ts = datetime.utcnow()
+    if blocked_until and isinstance(blocked_until, datetime) and now_ts < blocked_until:
+        remaining = int((blocked_until - now_ts).total_seconds() / 60) + 1
+        st.error(f"Too many failed login attempts. Please try again in {remaining} minute(s).")
+
     with st.form("login", clear_on_submit=False):
         login = st.text_input("Login ID or Email", placeholder="Enter your login ID or official email")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
@@ -1055,21 +1166,44 @@ def login_page() -> None:
         submit = st.form_submit_button("Sign in to PSB Portal")
 
     if submit:
+        if blocked_until and isinstance(blocked_until, datetime) and now_ts < blocked_until:
+            st.error("You are temporarily blocked due to too many failed login attempts.")
+            return
         if captcha.strip() != st.session_state.get("captcha_answer", ""):
             st.error("Security verification failed. Please try again.")
-            st.stop()
-        login_key = login.lower().strip()
+            return
+        login_value = clean(login).lower().strip()
+        password_value = clean(password)
+        if not login_value or not password_value:
+            st.error("Login ID/email and password are required.")
+            return
         match = db_where(
             "users",
             "(lower(login_id) = :login_key or lower(email) = :login_key) and password_hash = :password_hash and status = 'Active'",
-            (("login_key", login_key), ("password_hash", phash(password.strip()))),
+            (("login_key", login_value), ("password_hash", phash(password_value))),
         )
         if match.empty:
-            st.error("Invalid login ID/email or password.")
+            st.session_state["login_attempts"] = login_attempts + 1
+            if st.session_state["login_attempts"] >= MAX_LOGIN_ATTEMPTS:
+                st.session_state["login_blocked_until"] = now_ts + timedelta(minutes=LOGIN_BLOCK_MINUTES)
+                st.error(f"Too many failed attempts. Try again after {LOGIN_BLOCK_MINUTES} minute(s).")
+            else:
+                remaining = MAX_LOGIN_ATTEMPTS - st.session_state["login_attempts"]
+                st.error(f"Invalid login ID/email or password. {remaining} attempt(s) remaining.")
         else:
             user = match.iloc[0].to_dict()
             st.session_state["logged_in"] = True
             st.session_state["user"] = user
+            st.session_state["login_attempts"] = 0
+            st.session_state["login_blocked_until"] = None
+            token = create_auth_token(user["user_id"])
+            st.session_state["auth_token"] = token
+            st.experimental_set_query_params(auth_token=token)
+            try:
+                # set a secure cookie so auth survives simple page refreshes
+                components.html(f"<script>document.cookie = 'psb_auth={token}; path=/; max-age=86400; Secure; SameSite=Strict';</script>", height=0)
+            except Exception:
+                pass
             db_update("users", "user_id", user["user_id"], {"last_login": now()})
             audit("User Login", f"{user['name']} logged in", actor=user)
             st.rerun()
@@ -1093,8 +1227,47 @@ def require_login() -> dict:
     if "user" not in st.session_state:
         st.session_state["user"] = {}
     if not st.session_state["logged_in"]:
-        login_page()
-        st.stop()
+        params = st.experimental_get_query_params()
+        token = clean(params.get("auth_token", [""])[0]) if params.get("auth_token") else ""
+        # If no auth token in URL, try reading a browser cookie and reload with it (helps preserve login across refresh)
+        if not token:
+            try:
+                components.html("""
+                    <script>
+                    (function(){
+                        function getCookie(n){return document.cookie.split('; ').reduce(function(r,c){var p=c.split('='); return p[0]===n?decodeURIComponent(p.slice(1).join('=')):r},'');}
+                        var t = getCookie('psb_auth');
+                        if(t && !new URLSearchParams(window.location.search).has('auth_token')){
+                            var params = new URLSearchParams(window.location.search);
+                            params.set('auth_token', t);
+                            window.location.search = params.toString();
+                        }
+                    })();
+                    </script>
+                """, height=0)
+            except Exception:
+                pass
+        if token:
+            user_id = resolve_auth_token(token)
+            if user_id:
+                match = db_where("users", "user_id = :user_id and status = 'Active'", (("user_id", user_id),))
+                if not match.empty:
+                    user = match.iloc[0].to_dict()
+                    st.session_state["logged_in"] = True
+                    st.session_state["user"] = user
+        if not st.session_state["logged_in"]:
+            # runtime checks for exposed secrets in environment (warn only)
+            warnings = []
+            if DEFAULT_ADMIN_PASSWORD:
+                warnings.append("DEFAULT_ADMIN_PASSWORD is set — ensure this is not a weak/demo password and is provided via environment variables only.")
+            if SUPABASE_SERVICE_ROLE_KEY:
+                warnings.append("SUPABASE_SERVICE_ROLE_KEY is present in environment — keep this secret in hosting environment variables, not in code or repo.")
+            if warnings:
+                for w in warnings:
+                    st.warning(w)
+                st.info("Security: remove any hard-coded secrets and use environment variables. See .env.example and DEPLOYMENT_CHECKLIST.md for guidance.")
+            login_page()
+            st.stop()
     return st.session_state["user"]
 
 
@@ -1121,6 +1294,7 @@ def sidebar(actor: dict) -> str:
     page = st.sidebar.radio("Menu", pages)
     if st.sidebar.button("Logout"):
         audit("User Logout", f"{actor_get(actor,'name')} logged out", actor=actor)
+        clear_auth_token()
         st.session_state["logged_in"] = False
         st.session_state["user"] = {}
         st.rerun()
@@ -1188,6 +1362,17 @@ def admin_page(actor):
         password = st.text_input("Password blank=auto", type="password")
         submit = st.form_submit_button("Create User")
     if submit and name and email:
+        # validate email and rate-limit admin user creation
+        if not validate_email(email):
+            st.error("Invalid email address.")
+            return
+        try:
+            admin_key = actor_get(actor, "user_id") or "anon"
+            if not RATE_LIMITER.allowed("create_user", admin_key, limit=5, per_seconds=60):
+                st.error("Rate limit exceeded for creating users. Try again later.")
+                return
+        except Exception:
+            pass
         login = re.sub(r"[^a-z0-9]", "", name.lower().replace(" ", ".")) or f"user{random.randint(100,999)}"
         password = password or temp_password()
         mentor_name, mentor_id = ("","")
@@ -2359,7 +2544,7 @@ def management_page(actor):
 
 
 def main() -> None:
-    st.set_page_config(page_title=APP_TITLE, page_icon="⚓", layout="wide")
+    st.set_page_config(page_title=APP_TITLE, page_icon="⚓", layout="wide", initial_sidebar_state="expanded")
     apply_style()
     require_persistent_backend()
     init_db()
