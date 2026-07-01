@@ -1063,7 +1063,8 @@ def apply_style() -> None:
         div[data-testid="stDataFrame"], .stTabs [data-baseweb="tab"], .stTabs [data-baseweb="tab-list"]{background:var(--psb-card)!important;border:1px solid var(--psb-line)}
         h1,h2,h3{color:var(--psb-text)}
     }
-    .stApp{background:radial-gradient(circle at top left,#eaf2ff 0,#f8fafc 34%,#eef3f8 100%);color:var(--psb-text)}
+    /* Use solid white background in light mode to ensure consistent white page background */
+    .stApp{background:var(--psb-card);color:var(--psb-text)}
     /* Inputs, controls and buttons use card/bg vars so they adapt to theme */
     input, textarea, select, button, .stButton > button, .stTextInput>div>div, .stTextArea>div>div{background:var(--psb-card)!important;color:var(--psb-text)!important;border:1px solid var(--psb-line)!important}
     .stButton>button{box-shadow:none;border-radius:10px;padding:8px 12px}
@@ -1088,7 +1089,7 @@ def apply_style() -> None:
     .psb-card{background:white;border:1px solid var(--psb-line);border-radius:22px;padding:1rem 1.1rem;margin:.65rem 0;box-shadow:0 12px 32px rgba(15,23,42,.07)}
     .psb-section-title{font-size:1.02rem;font-weight:900;color:var(--psb-blue);margin:.25rem 0 .65rem}
     .login-shell{min-height:calc(100vh - 3.5rem);display:flex;align-items:center;justify-content:center;padding:1.5rem 0 2.8rem}
-    .login-frame{width:min(1180px,96vw);display:grid;grid-template-columns:1.08fr .92fr;gap:0;background:rgba(255,255,255,.84);border:1px solid rgba(219,227,239,.95);border-radius:36px;overflow:hidden;box-shadow:0 38px 110px rgba(7,18,37,.22);backdrop-filter:blur(14px)}
+    .login-frame{width:min(1180px,96vw);display:grid;grid-template-columns:1.08fr .92fr;gap:0;background:var(--psb-card);border:1px solid rgba(219,227,239,.95);border-radius:36px;overflow:hidden;box-shadow:0 38px 110px rgba(7,18,37,.22)}
     .login-brand{position:relative;padding:3rem 2.8rem;color:white;background:radial-gradient(circle at 18% 18%,rgba(245,180,51,.30),transparent 25%),linear-gradient(135deg,#06162f 0%,#082b59 52%,#0b4b91 100%);min-height:650px;display:flex;flex-direction:column;justify-content:space-between}
     .login-brand:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.08) 0 1px,transparent 1px 18px),radial-gradient(circle at 86% 14%,rgba(255,255,255,.20),transparent 20%);opacity:.7;pointer-events:none}
     .brand-content,.brand-footer{position:relative;z-index:1}
@@ -1103,7 +1104,7 @@ def apply_style() -> None:
     .login-feature{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);border-radius:18px;padding:13px 14px;color:#eaf2ff}
     .login-feature b{display:block;color:white;font-size:.92rem;margin-bottom:4px}.login-feature span{font-size:.78rem;color:#cfe1ff}
     .brand-footer{border-top:1px solid rgba(255,255,255,.18);padding-top:1rem;color:#cbd5e1;font-size:.82rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    .login-panel{padding:3rem 2.6rem;background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);display:flex;flex-direction:column;justify-content:center}
+    .login-panel{padding:3rem 2.6rem;background:var(--psb-card);display:flex;flex-direction:column;justify-content:center}
     .login-card{background:white;border:1px solid #dce6f2;border-radius:30px;padding:2rem;box-shadow:0 18px 55px rgba(15,23,42,.10)}
     .login-card h2{font-size:1.75rem;margin:0 0 .35rem;color:#071225;font-weight:950}.login-card .muted{color:#64748b;margin:0 0 1.25rem;line-height:1.55}
     .login-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:1.1rem 0 0}.login-mini div{background:#f1f5f9;border:1px solid #dbe3ef;border-radius:16px;padding:10px;text-align:center}.login-mini b{display:block;color:#0b3b76;font-size:1rem}.login-mini span{font-size:.70rem;color:#64748b;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
