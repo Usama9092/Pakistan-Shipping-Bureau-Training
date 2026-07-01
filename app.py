@@ -314,14 +314,18 @@ def resolve_auth_token(token: str) -> str | None:
     if isinstance(created, datetime) and datetime.utcnow() - created > timedelta(days=1):
         ACTIVE_SESSIONS.pop(token, None)
         return None
-    return session.get("user_id")
+    user_id = session.get("user_id")
+    if user_id is None:
+        return None
+    return str(user_id)
 
 
 def clear_auth_token() -> None:
     try:
-        params = st.experimental_get_query_params()
-        params.pop("auth_token", None)
-        st.experimental_set_query_params(**params)
+        params = getattr(st, "experimental_get_query_params", lambda: {})()
+        if isinstance(params, dict):
+            params.pop("auth_token", None)
+            getattr(st, "experimental_set_query_params", lambda **kwargs: None)(**params)
     except Exception:
         pass
     st.session_state.pop("auth_token", None)
@@ -1002,11 +1006,17 @@ def build_certificate(auth: pd.Series) -> tuple[str, str, str]:
 <!doctype html>
 <html><head><meta charset='utf-8'><title>PSB Authorization Certificate</title>
 <style>
-body{{font-family:Arial,sans-serif;padding:40px;color:#0f172a}}
-.cert{{border:5px solid #071225;padding:35px;border-radius:18px}}
+body{{font-family:Arial,sans-serif;padding:40px;color:#0f172a;background:transparent}}
+.cert{{border:5px solid #071225;padding:35px;border-radius:18px;background:#fff}}
 h1{{color:#071225;text-align:center;margin-bottom:0}} h2{{text-align:center;color:#0b3b76;margin-top:6px}}
 .row{{margin:12px 0;font-size:16px}} .sig{{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:45px}}
 .box{{border-top:1px solid #0f172a;padding-top:8px;font-size:12px}} .qr{{text-align:center;margin-top:25px}}
+@media (prefers-color-scheme: dark) {{
+    body{{color:#e6eef8}}
+    .cert{{background:#071122;border-color:rgba(255,255,255,0.06)}}
+    h1{{color:#e6eef8}} h2{{color:#bfe0ff}}
+    .box{{border-top:1px solid rgba(255,255,255,0.06)}}
+}}
 </style></head><body><div class='cert'>
 <h1>Pakistan Shipping Bureau</h1><h2>Authorization Certificate / Letter</h2>
 <div class='row'><b>Certificate ID:</b> {cert_id}</div>
@@ -1034,7 +1044,17 @@ def apply_style() -> None:
     st.markdown("""
     <style>
     :root{--psb-navy:#071225;--psb-blue:#0b3b76;--psb-sky:#124f9e;--psb-card:#ffffff;--psb-line:#dbe3ef;--psb-text:#0f172a;--psb-muted:#64748b}
+    @media (prefers-color-scheme: dark) {
+        :root{--psb-card:#0b1220;--psb-line:rgba(255,255,255,0.06);--psb-text:#e6eef8;--psb-muted:#9aa7b8}
+        .stApp{background:radial-gradient(circle at top left,#041022 0,#07121a 34%,#052036 100%);color:var(--psb-text)}
+        section[data-testid="stSidebar"]{background:linear-gradient(180deg,var(--psb-navy) 0%,var(--psb-blue) 72%,#08244b 100%);border-right:1px solid rgba(255,255,255,.03)}
+        .psb-card, .step, div[data-testid="stMetric"]{background:var(--psb-card);border:1px solid var(--psb-line)}
+    }
     .stApp{background:radial-gradient(circle at top left,#eaf2ff 0,#f8fafc 34%,#eef3f8 100%);color:var(--psb-text)}
+    /* Inputs, controls and buttons use card/bg vars so they adapt to theme */
+    input, textarea, select, button, .stButton > button, .stTextInput>div>div, .stTextArea>div>div{background:var(--psb-card)!important;color:var(--psb-text)!important;border:1px solid var(--psb-line)!important}
+    .stButton>button{box-shadow:none;border-radius:10px;padding:8px 12px}
+    a, a:hover{color:var(--psb-sky)}
     .block-container{padding-top:1rem;padding-bottom:2.5rem;max-width:1480px}
     #MainMenu, footer, header[data-testid="stHeader"]{visibility:hidden}
     button[title="Toggle sidebar"], button[aria-label="Toggle sidebar"], button[aria-label="Collapse sidebar"], button[aria-label="Expand sidebar"], div[role="button"][aria-label*="sidebar"]{display:none!important}
@@ -1198,7 +1218,7 @@ def login_page() -> None:
             st.session_state["login_blocked_until"] = None
             token = create_auth_token(user["user_id"])
             st.session_state["auth_token"] = token
-            st.experimental_set_query_params(auth_token=token)
+            getattr(st, "experimental_set_query_params", lambda **kwargs: None)(auth_token=token)
             try:
                 # set a secure cookie so auth survives simple page refreshes
                 components.html(f"<script>document.cookie = 'psb_auth={token}; path=/; max-age=86400; Secure; SameSite=Strict';</script>", height=0)
@@ -1227,7 +1247,7 @@ def require_login() -> dict:
     if "user" not in st.session_state:
         st.session_state["user"] = {}
     if not st.session_state["logged_in"]:
-        params = st.experimental_get_query_params()
+        params = getattr(st, "experimental_get_query_params", lambda: {})()
         token = clean(params.get("auth_token", [""])[0]) if params.get("auth_token") else ""
         # If no auth token in URL, try reading a browser cookie and reload with it (helps preserve login across refresh)
         if not token:
