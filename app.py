@@ -1049,6 +1049,19 @@ def apply_style() -> None:
         .stApp{background:radial-gradient(circle at top left,#041022 0,#07121a 34%,#052036 100%);color:var(--psb-text)}
         section[data-testid="stSidebar"]{background:linear-gradient(180deg,var(--psb-navy) 0%,var(--psb-blue) 72%,#08244b 100%);border-right:1px solid rgba(255,255,255,.03)}
         .psb-card, .step, div[data-testid="stMetric"]{background:var(--psb-card);border:1px solid var(--psb-line)}
+        /* Panels, cards and form controls */
+        .login-panel{background:transparent}
+        .login-frame{background:linear-gradient(180deg,rgba(6,10,18,0.6),rgba(4,10,20,0.65));border-color:rgba(255,255,255,0.03);box-shadow:0 30px 80px rgba(0,0,0,0.6)}
+        .login-card{background:var(--psb-card);border:1px solid var(--psb-line);box-shadow:0 14px 40px rgba(2,6,12,0.6)}
+        .login-card h2{color:var(--psb-text)}
+        .login-card .muted{color:var(--psb-muted)}
+        .login-card label{color:var(--psb-text)!important}
+        input, textarea, select, .stTextInput>div>div input, .stTextArea>div>div textarea{background:var(--psb-card)!important;color:var(--psb-text)!important;border:1px solid var(--psb-line)!important}
+        input::placeholder, textarea::placeholder{color:var(--psb-muted)!important}
+        .stButton>button, .stDownloadButton>button{background:linear-gradient(135deg,var(--psb-blue),var(--psb-navy));border-color:var(--psb-navy);color:white}
+        .stExpander, div[data-testid="stExpander"]{background:transparent;border:1px solid var(--psb-line)}
+        div[data-testid="stDataFrame"], .stTabs [data-baseweb="tab"], .stTabs [data-baseweb="tab-list"]{background:var(--psb-card)!important;border:1px solid var(--psb-line)}
+        h1,h2,h3{color:var(--psb-text)}
     }
     .stApp{background:radial-gradient(circle at top left,#eaf2ff 0,#f8fafc 34%,#eef3f8 100%);color:var(--psb-text)}
     /* Inputs, controls and buttons use card/bg vars so they adapt to theme */
