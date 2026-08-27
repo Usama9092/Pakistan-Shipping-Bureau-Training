@@ -1,0 +1,266 @@
+{
+  "GM": {
+    "sections": [
+      {
+        "name": "Capability",
+        "views": [
+          "GM Capability",
+          "CRB Cases",
+          "Authorization Decisions",
+          "Certificates"
+        ],
+        "view_group": "gm"
+      },
+      {
+        "name": "Account",
+        "views": [
+          "GM Notifications"
+        ],
+        "view_group": "gm"
+      }
+    ]
+  },
+  "Admin": {
+    "sections": [
+      {
+        "name": "Administration",
+        "views": [
+          "Users & Roles",
+          "Departments",
+          "Permissions",
+          "System Settings",
+          "Audit Trail",
+          "Backup & Recovery"
+        ],
+        "view_group": "admin"
+      }
+    ]
+  },
+  "Trainer": {
+    "sections": [
+      {
+        "name": "Qualification",
+        "views": [
+          "Qualification Workspace"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "Department Manager": {
+    "sections": [
+      {
+        "name": "Department",
+        "views": [
+          "Department Qualification",
+          "My Assessments",
+          "Authorization Cases"
+        ],
+        "view_group": "training"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "Surveyor": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Assessments",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "Industrial Surveyor": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Assessments",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "Plan Appraiser": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Assessments",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library",
+          "Interpretation Portal"
+        ],
+        "view_group": "quality"
+      }
+    ]
+  },
+  "Trainee": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Development",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "On Probation": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Development",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "Management": {
+    "sections": [
+      {
+        "name": "Executive",
+        "views": [
+          "Executive Dashboard",
+          "People & Capability",
+          "CRB Cases",
+          "Authorization Decisions",
+          "Certificates"
+        ],
+        "view_group": "executive"
+      }
+    ]
+  },
+  "QMS Auditor": {
+    "sections": [
+      {
+        "name": "Quality",
+        "views": [
+          "My Audits",
+          "Audit Workspace",
+          "Accreditation Readiness",
+          "Knowledge Library"
+        ],
+        "view_group": "quality"
+      }
+    ]
+  },
+  "QMR": {
+    "sections": [
+      {
+        "name": "Quality",
+        "views": [
+          "Management Review Dashboard",
+          "Accreditation Readiness",
+          "Knowledge Library"
+        ],
+        "view_group": "quality"
+      }
+    ]
+  },
+  "Rule Development Rep": {
+    "sections": [
+      {
+        "name": "Rules",
+        "views": [
+          "Rule Development",
+          "Interpretation Portal",
+          "Knowledge Library"
+        ],
+        "view_group": "quality"
+      }
+    ]
+  },
+  "NSC Surveyor": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Assessments",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  },
+  "In-Service Surveyor": {
+    "sections": [
+      {
+        "name": "My Qualification",
+        "views": [
+          "My Qualification",
+          "My Assessments",
+          "My Certificates"
+        ],
+        "view_group": "mywork"
+      },
+      {
+        "name": "Reference",
+        "views": [
+          "Knowledge Library"
+        ],
+        "view_group": "training"
+      }
+    ]
+  }
+}

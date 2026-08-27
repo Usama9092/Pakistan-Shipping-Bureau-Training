@@ -1,0 +1,16 @@
+-- KPI governance metadata and baseline definitions.
+alter table if exists public.kpi_definitions add column if not exists approval_status text default 'Pending Business Approval';
+alter table if exists public.kpi_definitions add column if not exists approved_by text;
+alter table if exists public.kpi_definitions add column if not exists approved_on text;
+alter table if exists public.kpi_definitions add column if not exists business_owner text;
+alter table if exists public.kpi_definitions add column if not exists approval_reason text;
+insert into public.kpi_definitions(kpi_id,name,description,formula,weight,target,period_type,source_modules,owner_role,version,calculation_version,data_owner_role,effective_from,effective_to,active,business_owner,approval_status,created_on,updated_on) values
+('KPI-TRAINING','Training Compliance','Required training completed / required training * 100','completed_required / required * 100',0.15,95,'Monthly','Training','QMS','1.0','1.0','Training',CURRENT_DATE,'','Yes','QMR','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-COMPETENCY','Competency Readiness','Competency-ready records / active competency records * 100','ready_competency / active_competency * 100',0.20,95,'Monthly','Competency','Technical Manager','1.0','1.0','Competency',CURRENT_DATE,'','Yes','Technical Manager','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-AUTH','Authorization Validity','Valid authorizations / active authorizations * 100','valid_authorizations / active_authorizations * 100',0.20,98,'Monthly','Authorization','Management','1.0','1.0','Authorization',CURRENT_DATE,'','Yes','Management','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-TECH','Technical Review Quality','Accepted reviews / reviewed reviews * 100','accepted_reviews / reviewed_reviews * 100',0.10,95,'Monthly','Technical Reviews','Technical Manager','1.0','1.0','Technical Reviews',CURRENT_DATE,'','Yes','Technical Manager','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-QMS','Quality Compliance','Closed quality findings / total findings * 100','closed_findings / total_findings * 100',0.10,95,'Monthly','QMS','QMR','1.0','1.0','QMS',CURRENT_DATE,'','Yes','QMR','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-DELIVERY','Delivery Reliability','Completed jobs on time / completed jobs * 100','completed_jobs_on_time / completed_jobs * 100',0.10,95,'Monthly','Job Allocation','Job Coordinator','1.0','1.0','Operations',CURRENT_DATE,'','Yes','Job Coordinator','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-FEEDBACK','Client Satisfaction','Positive/resolved feedback * 100','positive_feedback / resolved_feedback * 100',0.05,90,'Monthly','Client Feedback','Management','1.0','1.0','Client Feedback',CURRENT_DATE,'','Yes','Management','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+('KPI-NCR','NCR Effectiveness','Effective closed NCR / closed NCR * 100','closed_effective_ncr / closed_ncr * 100',0.10,95,'Monthly','NCR / Corrective Action','QMS','1.0','1.0','NCR',CURRENT_DATE,'','Yes','QMR','Pending Business Approval',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+on conflict (kpi_id) do nothing;

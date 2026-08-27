@@ -73,16 +73,8 @@ PUBLIC_URL=https://training.psbureau.org
 ## Default demo logins
 
 ```text
-admin / Admin@1234
-trainer / Trainer@1234
-tutor / Tutor@1234
-technical / Tech@1234
-principal / Principal@1234
-qmr / QMR@1234
-coordinator / Coord@1234
-surveyor / Surveyor@1234
-appraiser / Appraiser@1234
-management / Mgmt@1234
+Set INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD in the deployment environment for the first administrator.
+Demo credentials are disabled by default. For controlled development testing only, set ENABLE_DEMO_SEED=true and DEMO_PASSWORD in the environment.
 ```
 
 ## International classification society workflow
@@ -137,3 +129,33 @@ APP_ENV=production
 Local SQLite is allowed only for local testing. On Render, the app will stop and show a configuration warning if `DATABASE_URL` is not PostgreSQL/Supabase.
 
 Uploaded files also require Supabase Storage on Render, so training files, evidence, certificates and records do not disappear after restart/redeploy.
+
+
+## Role Alignment / Live Verification
+- Explicit navigation profiles are defined for every configured role.
+- Page action authorization uses the central RBAC service for upgraded workflows.
+- Public certificate verification is available through `?verify=<certificate_id>`.
+- Supabase JWT/RLS, Render multi-instance and browser/load tests must be executed in the real deployment environment.
+
+
+## Final security contract
+All schema tables are RLS-enabled and client table privileges are denied by default. The PSB application is server-side and uses controlled credentials. Live Supabase JWT/RLS, Render multi-instance, browser and load checks remain mandatory release-gate evidence and must be executed in staging before production.
+
+## Release documentation
+
+The root of the release contains only the authoritative current release artifacts. Historical audit snapshots and superseded validation reports are stored under `archive/audits/` and are not part of the active release decision.
+
+Authoritative current files:
+- `RELEASE_MANIFEST.json`
+- `ROLE_EXPERIENCE_FINAL_RELEASE_AUDIT.json`
+- `FINAL_RELEASE_EXECUTION_GATE.md`
+
+Current release baseline: **69 schema tables, 277 role routes, 18 roles, migrations 001–029**.
+
+
+## Qualification Workspace and AI-assisted MCQ publishing
+The Trainer now works from one **Qualification Workspace** containing path versions, levels, modules, theoretical training, practical/witness requirements, probation progression, the path matrix, and the controlled Knowledge Library. Uploaded PDF/DOCX/PPTX/XLSX materials and rule/reference text can be used to create MCQ drafts. Draft questions are not visible to learners until the Trainer reviews them and explicitly selects **Publish MCQs to Assigned Learners**.
+
+For an external state-of-the-art model, configure `PSB_AI_MCQ_ENDPOINT`, `PSB_AI_MCQ_API_KEY`, and `PSB_AI_MCQ_MODEL` with an OpenAI-compatible chat-completions provider. If no provider is configured, PSB uses its deterministic controlled-source fallback; the Trainer review/publish gate remains mandatory in either mode.
+
+Final authorization is only presented after a CRB-recommended case. Approval issues a **Digital Certificate of Authorization** valid for 12 months from the final approval date, with QR/public verification and visibility on the holder's qualification/certificate pages.

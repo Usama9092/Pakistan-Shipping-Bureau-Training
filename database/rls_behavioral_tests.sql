@@ -1,0 +1,12 @@
+-- Role matrix includes Surveyor, Trainer, Surveyor, Department Manager and Management.
+-- Execute in a Supabase staging project after creating dedicated Auth test users.
+-- Required scenarios: SELF, ASSIGNED, DEPARTMENT, CRB CASE, ORG, and SERVER-ONLY tables.
+-- The statements below are intentionally read-only assertions/examples and should be executed using
+-- the Supabase SQL editor with a real authenticated request context or pgTAP harness.
+-- 1) Surveyor must only see own user_id-scoped rows.
+-- 2) Trainer must see assigned learners but not unassigned learners.
+-- 3) QMS Auditor may see department-scoped QMS records only.
+-- 4) CRB Member may see only authorization/CRB cases where crb_member_id = current user.
+-- 5) Trainee may only see own Training/CPD/Development/Competency/Authorization records.
+-- 6) Anonymous and authenticated direct writes to all application tables must be denied.
+-- 7) auth_sessions, audit_trail and system control tables must be unreadable to authenticated clients.

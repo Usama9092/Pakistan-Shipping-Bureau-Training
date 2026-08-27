@@ -1,0 +1,121 @@
+{
+  "GM": {
+    "GM Capability": "Organization-wide",
+    "CRB Cases": "Organization-wide",
+    "Authorization Decisions": "Organization-wide",
+    "Certificates": "Organization-wide",
+    "GM Notifications": "Organization-wide",
+    "Dashboard": "Organization-wide"
+  },
+  "Admin": {
+    "Users & Roles": "Organization-wide",
+    "Departments": "Organization-wide",
+    "Permissions": "Organization-wide",
+    "System Settings": "Organization-wide",
+    "Audit Trail": "Organization-wide",
+    "Backup & Recovery": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Organization-wide"
+  },
+  "Trainer": {
+    "Qualification Workspace": "Assigned",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Assigned"
+  },
+  "Department Manager": {
+    "Department Qualification": "Department",
+    "My Assessments": "Assigned",
+    "Authorization Cases": "Department",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Department"
+  },
+  "Surveyor": {
+    "My Qualification": "Own",
+    "My Assessments": "Assigned",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "Industrial Surveyor": {
+    "My Qualification": "Own",
+    "My Assessments": "Assigned",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "Plan Appraiser": {
+    "My Qualification": "Own",
+    "My Assessments": "Assigned",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "Interpretation Portal": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "Trainee": {
+    "My Qualification": "Own",
+    "My Development": "Own",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "On Probation": {
+    "My Qualification": "Own",
+    "My Development": "Own",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "Management": {
+    "Executive Dashboard": "Organization-wide",
+    "People & Capability": "Organization-wide",
+    "CRB Cases": "Organization-wide",
+    "Authorization Decisions": "Organization-wide",
+    "Certificates": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Organization-wide"
+  },
+  "QMS Auditor": {
+    "My Audits": "Department",
+    "Audit Workspace": "Department",
+    "Accreditation Readiness": "Department",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Department"
+  },
+  "QMR": {
+    "Management Review Dashboard": "Organization-wide",
+    "Accreditation Readiness": "Organization-wide",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Organization-wide"
+  },
+  "Rule Development Rep": {
+    "Rule Development": "Department",
+    "Interpretation Portal": "Department",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Department"
+  },
+  "NSC Surveyor": {
+    "My Qualification": "Own",
+    "My Assessments": "Assigned",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  },
+  "In-Service Surveyor": {
+    "My Qualification": "Own",
+    "My Assessments": "Assigned",
+    "My Certificates": "Own",
+    "Knowledge Library": "Organization-wide",
+    "QR Verify": "Organization-wide",
+    "Dashboard": "Own"
+  }
+}

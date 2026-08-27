@@ -1,0 +1,26 @@
+{
+  "organization": [
+    "Admin",
+    "Management",
+    "QMR",
+    "GM"
+  ],
+  "self": [
+    "Surveyor",
+    "NSC Surveyor",
+    "In-Service Surveyor",
+    "Plan Appraiser",
+    "Industrial Surveyor",
+    "Trainee",
+    "On Probation"
+  ],
+  "assigned": [
+    "Trainer"
+  ],
+  "case": [],
+  "department": [
+    "Department Manager",
+    "QMS Auditor",
+    "Rule Development Rep"
+  ]
+}

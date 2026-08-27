@@ -1,0 +1,2 @@
+-- Gap 20: role classification is configuration-owned in config/role_scope_classes.json.
+-- Migration placeholder retained for continuous deployment numbering; no database table is required.

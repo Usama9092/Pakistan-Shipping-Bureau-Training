@@ -1,0 +1,9 @@
+-- Phase 2 RLS regression checklist.
+-- Execute against a staging Supabase project using authenticated JWT sessions.
+-- These checks are intentionally non-destructive.
+-- 1) Verify a normal staff user cannot read another department's restricted records.
+-- 2) Verify a trainer can read/update only records covered by their scope.
+-- 3) Verify business approvers cannot alter Administration permissions unless explicitly granted.
+-- 4) Verify audit_trail has no UPDATE/DELETE policy for ordinary users.
+-- 5) Verify service-role access is used only server-side.
+-- Replace the placeholder auth context with your Supabase test harness.

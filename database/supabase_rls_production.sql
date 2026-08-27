@@ -1,0 +1,602 @@
+-- PSB Production RLS Baseline
+-- IMPORTANT: test in staging first. The Streamlit server should continue using the service role.
+set search_path = public;
+
+create or replace function public.psb_current_user_id() returns text language sql stable security definer set search_path=public as $$
+  select user_id from public.users where auth_user_id=auth.uid() limit 1
+$$;
+create or replace function public.psb_current_role() returns text language sql stable security definer set search_path=public as $$
+  select role from public.users where auth_user_id=auth.uid() limit 1
+$$;
+create or replace function public.psb_is_org_role() returns boolean language sql stable security definer set search_path=public as $$
+  select coalesce(public.psb_current_role() in ('Admin','Management','Technical Manager','QMR','Job Coordinator'),false)
+$$;
+create or replace function public.psb_can_access_user(target text) returns boolean
+language plpgsql stable security definer set search_path=public as $$
+declare
+  me text := public.psb_current_user_id();
+  role_name text := coalesce(public.psb_current_role(),'');
+begin
+  if me is null or me = '' or target is null or target = '' then return false; end if;
+  if role_name in ('Admin','Management','Technical Manager','QMR','Job Coordinator') then return true; end if;
+  if role_name in ('Surveyor','Plan Appraiser','Industrial Surveyor','Trainee','On Probation') then
+    return target = me;
+  end if;
+  if role_name = 'Trainer' then
+    return target = me or exists (
+      select 1 from public.users u
+      where u.user_id = target
+        and (u.tutor_id = me or u.mentor_id = me or u.trainer_id = me or u.assigner_id = me)
+    );
+  end if;
+  if role_name in ('QMS Auditor','Lead Auditor','Principal Surveyor','Chief Plan Appraiser') then
+    return target = me or exists (
+      select 1 from public.user_departments ud_target
+      join public.user_departments ud_me on ud_me.department = ud_target.department and ud_me.status='Active'
+      where ud_target.user_id = target
+        and ud_target.status='Active'
+        and ud_me.user_id = me
+    );
+  end if;
+  -- CRB, Rule Development and other specialist roles default to self unless
+  -- a module-specific policy explicitly grants case access.
+  return target = me;
+end; $$;
+
+-- Identity / session security.
+alter table public.users enable row level security;
+
+-- Production is server-mediated: direct browser table access is denied.
+-- Business scope is enforced by the application RBAC/record authorization layer.
+
+-- Enterprise governance tables: default deny client access unless a table gets an explicit policy here.
+-- This is intentional; server-side Streamlit uses the service role.
+
+-- FINAL SERVER-ONLY RLS CONTRACT
+
+alter table public.auth_sessions enable row level security;
+drop policy if exists psb_auth_sessions_server_only on public.auth_sessions;
+create policy psb_auth_sessions_server_only on public.auth_sessions for all to anon, authenticated using (false) with check (false);
+revoke all on table public.auth_sessions from anon, authenticated;
+
+alter table public.users enable row level security;
+drop policy if exists psb_server_only_users on public.users;
+create policy psb_server_only_users on public.users for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_users_auth on public.users;
+create policy psb_server_only_users_auth on public.users for all to authenticated using (false) with check (false);
+revoke all on table public.users from anon, authenticated;
+alter table public.user_departments enable row level security;
+drop policy if exists psb_server_only_user_departments on public.user_departments;
+create policy psb_server_only_user_departments on public.user_departments for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_user_departments_auth on public.user_departments;
+create policy psb_server_only_user_departments_auth on public.user_departments for all to authenticated using (false) with check (false);
+revoke all on table public.user_departments from anon, authenticated;
+alter table public.training_modules enable row level security;
+drop policy if exists psb_server_only_training_modules on public.training_modules;
+create policy psb_server_only_training_modules on public.training_modules for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_training_modules_auth on public.training_modules;
+create policy psb_server_only_training_modules_auth on public.training_modules for all to authenticated using (false) with check (false);
+revoke all on table public.training_modules from anon, authenticated;
+alter table public.trainings enable row level security;
+drop policy if exists psb_server_only_trainings on public.trainings;
+create policy psb_server_only_trainings on public.trainings for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_trainings_auth on public.trainings;
+create policy psb_server_only_trainings_auth on public.trainings for all to authenticated using (false) with check (false);
+revoke all on table public.trainings from anon, authenticated;
+alter table public.files enable row level security;
+drop policy if exists psb_server_only_files on public.files;
+create policy psb_server_only_files on public.files for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_files_auth on public.files;
+create policy psb_server_only_files_auth on public.files for all to authenticated using (false) with check (false);
+revoke all on table public.files from anon, authenticated;
+alter table public.training_records enable row level security;
+drop policy if exists psb_server_only_training_records on public.training_records;
+create policy psb_server_only_training_records on public.training_records for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_training_records_auth on public.training_records;
+create policy psb_server_only_training_records_auth on public.training_records for all to authenticated using (false) with check (false);
+revoke all on table public.training_records from anon, authenticated;
+alter table public.question_bank enable row level security;
+drop policy if exists psb_server_only_question_bank on public.question_bank;
+create policy psb_server_only_question_bank on public.question_bank for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_question_bank_auth on public.question_bank;
+create policy psb_server_only_question_bank_auth on public.question_bank for all to authenticated using (false) with check (false);
+revoke all on table public.question_bank from anon, authenticated;
+alter table public.assessment_history enable row level security;
+drop policy if exists psb_server_only_assessment_history on public.assessment_history;
+create policy psb_server_only_assessment_history on public.assessment_history for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_assessment_history_auth on public.assessment_history;
+create policy psb_server_only_assessment_history_auth on public.assessment_history for all to authenticated using (false) with check (false);
+revoke all on table public.assessment_history from anon, authenticated;
+alter table public.competency_matrix enable row level security;
+drop policy if exists psb_server_only_competency_matrix on public.competency_matrix;
+create policy psb_server_only_competency_matrix on public.competency_matrix for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_competency_matrix_auth on public.competency_matrix;
+create policy psb_server_only_competency_matrix_auth on public.competency_matrix for all to authenticated using (false) with check (false);
+revoke all on table public.competency_matrix from anon, authenticated;
+alter table public.authorization_matrix enable row level security;
+drop policy if exists psb_server_only_authorization_matrix on public.authorization_matrix;
+create policy psb_server_only_authorization_matrix on public.authorization_matrix for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_authorization_matrix_auth on public.authorization_matrix;
+create policy psb_server_only_authorization_matrix_auth on public.authorization_matrix for all to authenticated using (false) with check (false);
+revoke all on table public.authorization_matrix from anon, authenticated;
+alter table public.development_plans enable row level security;
+drop policy if exists psb_server_only_development_plans on public.development_plans;
+create policy psb_server_only_development_plans on public.development_plans for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_development_plans_auth on public.development_plans;
+create policy psb_server_only_development_plans_auth on public.development_plans for all to authenticated using (false) with check (false);
+revoke all on table public.development_plans from anon, authenticated;
+alter table public.witness_surveys enable row level security;
+drop policy if exists psb_server_only_witness_surveys on public.witness_surveys;
+create policy psb_server_only_witness_surveys on public.witness_surveys for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_witness_surveys_auth on public.witness_surveys;
+create policy psb_server_only_witness_surveys_auth on public.witness_surveys for all to authenticated using (false) with check (false);
+revoke all on table public.witness_surveys from anon, authenticated;
+alter table public.supervised_activities enable row level security;
+drop policy if exists psb_server_only_supervised_activities on public.supervised_activities;
+create policy psb_server_only_supervised_activities on public.supervised_activities for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_supervised_activities_auth on public.supervised_activities;
+create policy psb_server_only_supervised_activities_auth on public.supervised_activities for all to authenticated using (false) with check (false);
+revoke all on table public.supervised_activities from anon, authenticated;
+alter table public.authorization_requests enable row level security;
+drop policy if exists psb_server_only_authorization_requests on public.authorization_requests;
+create policy psb_server_only_authorization_requests on public.authorization_requests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_authorization_requests_auth on public.authorization_requests;
+create policy psb_server_only_authorization_requests_auth on public.authorization_requests for all to authenticated using (false) with check (false);
+revoke all on table public.authorization_requests from anon, authenticated;
+alter table public.authorization_certificates enable row level security;
+drop policy if exists psb_server_only_authorization_certificates on public.authorization_certificates;
+create policy psb_server_only_authorization_certificates on public.authorization_certificates for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_authorization_certificates_auth on public.authorization_certificates;
+create policy psb_server_only_authorization_certificates_auth on public.authorization_certificates for all to authenticated using (false) with check (false);
+revoke all on table public.authorization_certificates from anon, authenticated;
+alter table public.crb_reviews enable row level security;
+drop policy if exists psb_server_only_crb_reviews on public.crb_reviews;
+create policy psb_server_only_crb_reviews on public.crb_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_crb_reviews_auth on public.crb_reviews;
+create policy psb_server_only_crb_reviews_auth on public.crb_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.crb_reviews from anon, authenticated;
+alter table public.annual_reviews enable row level security;
+drop policy if exists psb_server_only_annual_reviews on public.annual_reviews;
+create policy psb_server_only_annual_reviews on public.annual_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_annual_reviews_auth on public.annual_reviews;
+create policy psb_server_only_annual_reviews_auth on public.annual_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.annual_reviews from anon, authenticated;
+alter table public.revalidation_requests enable row level security;
+drop policy if exists psb_server_only_revalidation_requests on public.revalidation_requests;
+create policy psb_server_only_revalidation_requests on public.revalidation_requests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_revalidation_requests_auth on public.revalidation_requests;
+create policy psb_server_only_revalidation_requests_auth on public.revalidation_requests for all to authenticated using (false) with check (false);
+revoke all on table public.revalidation_requests from anon, authenticated;
+alter table public.job_requests enable row level security;
+drop policy if exists psb_server_only_job_requests on public.job_requests;
+create policy psb_server_only_job_requests on public.job_requests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_job_requests_auth on public.job_requests;
+create policy psb_server_only_job_requests_auth on public.job_requests for all to authenticated using (false) with check (false);
+revoke all on table public.job_requests from anon, authenticated;
+alter table public.job_assignments enable row level security;
+drop policy if exists psb_server_only_job_assignments on public.job_assignments;
+create policy psb_server_only_job_assignments on public.job_assignments for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_job_assignments_auth on public.job_assignments;
+create policy psb_server_only_job_assignments_auth on public.job_assignments for all to authenticated using (false) with check (false);
+revoke all on table public.job_assignments from anon, authenticated;
+alter table public.kpi_records enable row level security;
+drop policy if exists psb_server_only_kpi_records on public.kpi_records;
+create policy psb_server_only_kpi_records on public.kpi_records for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_kpi_records_auth on public.kpi_records;
+create policy psb_server_only_kpi_records_auth on public.kpi_records for all to authenticated using (false) with check (false);
+revoke all on table public.kpi_records from anon, authenticated;
+alter table public.cpd_records enable row level security;
+drop policy if exists psb_server_only_cpd_records on public.cpd_records;
+create policy psb_server_only_cpd_records on public.cpd_records for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_cpd_records_auth on public.cpd_records;
+create policy psb_server_only_cpd_records_auth on public.cpd_records for all to authenticated using (false) with check (false);
+revoke all on table public.cpd_records from anon, authenticated;
+alter table public.knowledge_library enable row level security;
+drop policy if exists psb_server_only_knowledge_library on public.knowledge_library;
+create policy psb_server_only_knowledge_library on public.knowledge_library for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_knowledge_library_auth on public.knowledge_library;
+create policy psb_server_only_knowledge_library_auth on public.knowledge_library for all to authenticated using (false) with check (false);
+revoke all on table public.knowledge_library from anon, authenticated;
+alter table public.knowledge_acknowledgements enable row level security;
+drop policy if exists psb_server_only_knowledge_acknowledgements on public.knowledge_acknowledgements;
+create policy psb_server_only_knowledge_acknowledgements on public.knowledge_acknowledgements for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_knowledge_acknowledgements_auth on public.knowledge_acknowledgements;
+create policy psb_server_only_knowledge_acknowledgements_auth on public.knowledge_acknowledgements for all to authenticated using (false) with check (false);
+revoke all on table public.knowledge_acknowledgements from anon, authenticated;
+alter table public.knowledge_versions enable row level security;
+drop policy if exists psb_server_only_knowledge_versions on public.knowledge_versions;
+create policy psb_server_only_knowledge_versions on public.knowledge_versions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_knowledge_versions_auth on public.knowledge_versions;
+create policy psb_server_only_knowledge_versions_auth on public.knowledge_versions for all to authenticated using (false) with check (false);
+revoke all on table public.knowledge_versions from anon, authenticated;
+alter table public.rule_library enable row level security;
+drop policy if exists psb_server_only_rule_library on public.rule_library;
+create policy psb_server_only_rule_library on public.rule_library for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_rule_library_auth on public.rule_library;
+create policy psb_server_only_rule_library_auth on public.rule_library for all to authenticated using (false) with check (false);
+revoke all on table public.rule_library from anon, authenticated;
+alter table public.capa_register enable row level security;
+drop policy if exists psb_server_only_capa_register on public.capa_register;
+create policy psb_server_only_capa_register on public.capa_register for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_capa_register_auth on public.capa_register;
+create policy psb_server_only_capa_register_auth on public.capa_register for all to authenticated using (false) with check (false);
+revoke all on table public.capa_register from anon, authenticated;
+alter table public.notifications enable row level security;
+drop policy if exists psb_server_only_notifications on public.notifications;
+create policy psb_server_only_notifications on public.notifications for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_notifications_auth on public.notifications;
+create policy psb_server_only_notifications_auth on public.notifications for all to authenticated using (false) with check (false);
+revoke all on table public.notifications from anon, authenticated;
+alter table public.audit_trail enable row level security;
+drop policy if exists psb_server_only_audit_trail on public.audit_trail;
+create policy psb_server_only_audit_trail on public.audit_trail for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_audit_trail_auth on public.audit_trail;
+create policy psb_server_only_audit_trail_auth on public.audit_trail for all to authenticated using (false) with check (false);
+revoke all on table public.audit_trail from anon, authenticated;
+alter table public.technical_authorities enable row level security;
+drop policy if exists psb_server_only_technical_authorities on public.technical_authorities;
+create policy psb_server_only_technical_authorities on public.technical_authorities for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_technical_authorities_auth on public.technical_authorities;
+create policy psb_server_only_technical_authorities_auth on public.technical_authorities for all to authenticated using (false) with check (false);
+revoke all on table public.technical_authorities from anon, authenticated;
+alter table public.gap_advisor_actions enable row level security;
+drop policy if exists psb_server_only_gap_advisor_actions on public.gap_advisor_actions;
+create policy psb_server_only_gap_advisor_actions on public.gap_advisor_actions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_gap_advisor_actions_auth on public.gap_advisor_actions;
+create policy psb_server_only_gap_advisor_actions_auth on public.gap_advisor_actions for all to authenticated using (false) with check (false);
+revoke all on table public.gap_advisor_actions from anon, authenticated;
+alter table public.competency_ncrs enable row level security;
+drop policy if exists psb_server_only_competency_ncrs on public.competency_ncrs;
+create policy psb_server_only_competency_ncrs on public.competency_ncrs for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_competency_ncrs_auth on public.competency_ncrs;
+create policy psb_server_only_competency_ncrs_auth on public.competency_ncrs for all to authenticated using (false) with check (false);
+revoke all on table public.competency_ncrs from anon, authenticated;
+alter table public.authorization_restrictions enable row level security;
+drop policy if exists psb_server_only_authorization_restrictions on public.authorization_restrictions;
+create policy psb_server_only_authorization_restrictions on public.authorization_restrictions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_authorization_restrictions_auth on public.authorization_restrictions;
+create policy psb_server_only_authorization_restrictions_auth on public.authorization_restrictions for all to authenticated using (false) with check (false);
+revoke all on table public.authorization_restrictions from anon, authenticated;
+alter table public.client_feedback enable row level security;
+drop policy if exists psb_server_only_client_feedback on public.client_feedback;
+create policy psb_server_only_client_feedback on public.client_feedback for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_client_feedback_auth on public.client_feedback;
+create policy psb_server_only_client_feedback_auth on public.client_feedback for all to authenticated using (false) with check (false);
+revoke all on table public.client_feedback from anon, authenticated;
+alter table public.succession_plans enable row level security;
+drop policy if exists psb_server_only_succession_plans on public.succession_plans;
+create policy psb_server_only_succession_plans on public.succession_plans for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_succession_plans_auth on public.succession_plans;
+create policy psb_server_only_succession_plans_auth on public.succession_plans for all to authenticated using (false) with check (false);
+revoke all on table public.succession_plans from anon, authenticated;
+alter table public.workforce_forecasts enable row level security;
+drop policy if exists psb_server_only_workforce_forecasts on public.workforce_forecasts;
+create policy psb_server_only_workforce_forecasts on public.workforce_forecasts for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_workforce_forecasts_auth on public.workforce_forecasts;
+create policy psb_server_only_workforce_forecasts_auth on public.workforce_forecasts for all to authenticated using (false) with check (false);
+revoke all on table public.workforce_forecasts from anon, authenticated;
+alter table public.accreditation_evidence enable row level security;
+drop policy if exists psb_server_only_accreditation_evidence on public.accreditation_evidence;
+create policy psb_server_only_accreditation_evidence on public.accreditation_evidence for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_accreditation_evidence_auth on public.accreditation_evidence;
+create policy psb_server_only_accreditation_evidence_auth on public.accreditation_evidence for all to authenticated using (false) with check (false);
+revoke all on table public.accreditation_evidence from anon, authenticated;
+alter table public.technical_interpretations enable row level security;
+drop policy if exists psb_server_only_technical_interpretations on public.technical_interpretations;
+create policy psb_server_only_technical_interpretations on public.technical_interpretations for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_technical_interpretations_auth on public.technical_interpretations;
+create policy psb_server_only_technical_interpretations_auth on public.technical_interpretations for all to authenticated using (false) with check (false);
+revoke all on table public.technical_interpretations from anon, authenticated;
+alter table public.departments enable row level security;
+drop policy if exists psb_server_only_departments on public.departments;
+create policy psb_server_only_departments on public.departments for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_departments_auth on public.departments;
+create policy psb_server_only_departments_auth on public.departments for all to authenticated using (false) with check (false);
+revoke all on table public.departments from anon, authenticated;
+alter table public.roles enable row level security;
+drop policy if exists psb_server_only_roles on public.roles;
+create policy psb_server_only_roles on public.roles for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_roles_auth on public.roles;
+create policy psb_server_only_roles_auth on public.roles for all to authenticated using (false) with check (false);
+revoke all on table public.roles from anon, authenticated;
+alter table public.permissions enable row level security;
+drop policy if exists psb_server_only_permissions on public.permissions;
+create policy psb_server_only_permissions on public.permissions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_permissions_auth on public.permissions;
+create policy psb_server_only_permissions_auth on public.permissions for all to authenticated using (false) with check (false);
+revoke all on table public.permissions from anon, authenticated;
+alter table public.role_permissions enable row level security;
+drop policy if exists psb_server_only_role_permissions on public.role_permissions;
+create policy psb_server_only_role_permissions on public.role_permissions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_role_permissions_auth on public.role_permissions;
+create policy psb_server_only_role_permissions_auth on public.role_permissions for all to authenticated using (false) with check (false);
+revoke all on table public.role_permissions from anon, authenticated;
+alter table public.user_permission_overrides enable row level security;
+drop policy if exists psb_server_only_user_permission_overrides on public.user_permission_overrides;
+create policy psb_server_only_user_permission_overrides on public.user_permission_overrides for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_user_permission_overrides_auth on public.user_permission_overrides;
+create policy psb_server_only_user_permission_overrides_auth on public.user_permission_overrides for all to authenticated using (false) with check (false);
+revoke all on table public.user_permission_overrides from anon, authenticated;
+alter table public.system_settings enable row level security;
+drop policy if exists psb_server_only_system_settings on public.system_settings;
+create policy psb_server_only_system_settings on public.system_settings for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_system_settings_auth on public.system_settings;
+create policy psb_server_only_system_settings_auth on public.system_settings for all to authenticated using (false) with check (false);
+revoke all on table public.system_settings from anon, authenticated;
+alter table public.backup_records enable row level security;
+drop policy if exists psb_server_only_backup_records on public.backup_records;
+create policy psb_server_only_backup_records on public.backup_records for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_backup_records_auth on public.backup_records;
+create policy psb_server_only_backup_records_auth on public.backup_records for all to authenticated using (false) with check (false);
+revoke all on table public.backup_records from anon, authenticated;
+alter table public.recovery_requests enable row level security;
+drop policy if exists psb_server_only_recovery_requests on public.recovery_requests;
+create policy psb_server_only_recovery_requests on public.recovery_requests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_recovery_requests_auth on public.recovery_requests;
+create policy psb_server_only_recovery_requests_auth on public.recovery_requests for all to authenticated using (false) with check (false);
+revoke all on table public.recovery_requests from anon, authenticated;
+alter table public.user_assignments enable row level security;
+drop policy if exists psb_server_only_user_assignments on public.user_assignments;
+create policy psb_server_only_user_assignments on public.user_assignments for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_user_assignments_auth on public.user_assignments;
+create policy psb_server_only_user_assignments_auth on public.user_assignments for all to authenticated using (false) with check (false);
+revoke all on table public.user_assignments from anon, authenticated;
+alter table public.authorization_events enable row level security;
+drop policy if exists psb_server_only_authorization_events on public.authorization_events;
+create policy psb_server_only_authorization_events on public.authorization_events for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_authorization_events_auth on public.authorization_events;
+create policy psb_server_only_authorization_events_auth on public.authorization_events for all to authenticated using (false) with check (false);
+revoke all on table public.authorization_events from anon, authenticated;
+alter table public.technical_reviews enable row level security;
+drop policy if exists psb_server_only_technical_reviews on public.technical_reviews;
+create policy psb_server_only_technical_reviews on public.technical_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_technical_reviews_auth on public.technical_reviews;
+create policy psb_server_only_technical_reviews_auth on public.technical_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.technical_reviews from anon, authenticated;
+alter table public.qms_audits enable row level security;
+drop policy if exists psb_server_only_qms_audits on public.qms_audits;
+create policy psb_server_only_qms_audits on public.qms_audits for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qms_audits_auth on public.qms_audits;
+create policy psb_server_only_qms_audits_auth on public.qms_audits for all to authenticated using (false) with check (false);
+revoke all on table public.qms_audits from anon, authenticated;
+alter table public.qms_compliance_items enable row level security;
+drop policy if exists psb_server_only_qms_compliance_items on public.qms_compliance_items;
+create policy psb_server_only_qms_compliance_items on public.qms_compliance_items for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qms_compliance_items_auth on public.qms_compliance_items;
+create policy psb_server_only_qms_compliance_items_auth on public.qms_compliance_items for all to authenticated using (false) with check (false);
+revoke all on table public.qms_compliance_items from anon, authenticated;
+alter table public.qms_management_reviews enable row level security;
+drop policy if exists psb_server_only_qms_management_reviews on public.qms_management_reviews;
+create policy psb_server_only_qms_management_reviews on public.qms_management_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qms_management_reviews_auth on public.qms_management_reviews;
+create policy psb_server_only_qms_management_reviews_auth on public.qms_management_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.qms_management_reviews from anon, authenticated;
+alter table public.qms_evidence_reviews enable row level security;
+drop policy if exists psb_server_only_qms_evidence_reviews on public.qms_evidence_reviews;
+create policy psb_server_only_qms_evidence_reviews on public.qms_evidence_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qms_evidence_reviews_auth on public.qms_evidence_reviews;
+create policy psb_server_only_qms_evidence_reviews_auth on public.qms_evidence_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.qms_evidence_reviews from anon, authenticated;
+alter table public.accreditation_assessments enable row level security;
+drop policy if exists psb_server_only_accreditation_assessments on public.accreditation_assessments;
+create policy psb_server_only_accreditation_assessments on public.accreditation_assessments for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_accreditation_assessments_auth on public.accreditation_assessments;
+create policy psb_server_only_accreditation_assessments_auth on public.accreditation_assessments for all to authenticated using (false) with check (false);
+revoke all on table public.accreditation_assessments from anon, authenticated;
+alter table public.interpretation_reviews enable row level security;
+drop policy if exists psb_server_only_interpretation_reviews on public.interpretation_reviews;
+create policy psb_server_only_interpretation_reviews on public.interpretation_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_interpretation_reviews_auth on public.interpretation_reviews;
+create policy psb_server_only_interpretation_reviews_auth on public.interpretation_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.interpretation_reviews from anon, authenticated;
+alter table public.rule_change_requests enable row level security;
+drop policy if exists psb_server_only_rule_change_requests on public.rule_change_requests;
+create policy psb_server_only_rule_change_requests on public.rule_change_requests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_rule_change_requests_auth on public.rule_change_requests;
+create policy psb_server_only_rule_change_requests_auth on public.rule_change_requests for all to authenticated using (false) with check (false);
+revoke all on table public.rule_change_requests from anon, authenticated;
+alter table public.kpi_snapshots enable row level security;
+drop policy if exists psb_server_only_kpi_snapshots on public.kpi_snapshots;
+create policy psb_server_only_kpi_snapshots on public.kpi_snapshots for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_kpi_snapshots_auth on public.kpi_snapshots;
+create policy psb_server_only_kpi_snapshots_auth on public.kpi_snapshots for all to authenticated using (false) with check (false);
+revoke all on table public.kpi_snapshots from anon, authenticated;
+alter table public.training_requirements enable row level security;
+drop policy if exists psb_server_only_training_requirements on public.training_requirements;
+create policy psb_server_only_training_requirements on public.training_requirements for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_training_requirements_auth on public.training_requirements;
+create policy psb_server_only_training_requirements_auth on public.training_requirements for all to authenticated using (false) with check (false);
+revoke all on table public.training_requirements from anon, authenticated;
+alter table public.competency_reviews enable row level security;
+drop policy if exists psb_server_only_competency_reviews on public.competency_reviews;
+create policy psb_server_only_competency_reviews on public.competency_reviews for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_competency_reviews_auth on public.competency_reviews;
+create policy psb_server_only_competency_reviews_auth on public.competency_reviews for all to authenticated using (false) with check (false);
+revoke all on table public.competency_reviews from anon, authenticated;
+alter table public.auth_sessions enable row level security;
+drop policy if exists psb_server_only_auth_sessions on public.auth_sessions;
+create policy psb_server_only_auth_sessions on public.auth_sessions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_auth_sessions_auth on public.auth_sessions;
+create policy psb_server_only_auth_sessions_auth on public.auth_sessions for all to authenticated using (false) with check (false);
+revoke all on table public.auth_sessions from anon, authenticated;
+alter table public.kpi_definitions enable row level security;
+drop policy if exists psb_server_only_kpi_definitions on public.kpi_definitions;
+create policy psb_server_only_kpi_definitions on public.kpi_definitions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_kpi_definitions_auth on public.kpi_definitions;
+create policy psb_server_only_kpi_definitions_auth on public.kpi_definitions for all to authenticated using (false) with check (false);
+revoke all on table public.kpi_definitions from anon, authenticated;
+alter table public.scheduler_runs enable row level security;
+drop policy if exists psb_server_only_scheduler_runs on public.scheduler_runs;
+create policy psb_server_only_scheduler_runs on public.scheduler_runs for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_scheduler_runs_auth on public.scheduler_runs;
+create policy psb_server_only_scheduler_runs_auth on public.scheduler_runs for all to authenticated using (false) with check (false);
+revoke all on table public.scheduler_runs from anon, authenticated;
+alter table public.qr_verification_events enable row level security;
+drop policy if exists psb_server_only_qr_verification_events on public.qr_verification_events;
+create policy psb_server_only_qr_verification_events on public.qr_verification_events for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qr_verification_events_auth on public.qr_verification_events;
+create policy psb_server_only_qr_verification_events_auth on public.qr_verification_events for all to authenticated using (false) with check (false);
+revoke all on table public.qr_verification_events from anon, authenticated;
+alter table public.schema_migrations enable row level security;
+drop policy if exists psb_server_only_schema_migrations on public.schema_migrations;
+create policy psb_server_only_schema_migrations on public.schema_migrations for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_schema_migrations_auth on public.schema_migrations;
+create policy psb_server_only_schema_migrations_auth on public.schema_migrations for all to authenticated using (false) with check (false);
+revoke all on table public.schema_migrations from anon, authenticated;
+alter table public.deprecated_table_registry enable row level security;
+drop policy if exists psb_server_only_deprecated_table_registry on public.deprecated_table_registry;
+create policy psb_server_only_deprecated_table_registry on public.deprecated_table_registry for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_deprecated_table_registry_auth on public.deprecated_table_registry;
+create policy psb_server_only_deprecated_table_registry_auth on public.deprecated_table_registry for all to authenticated using (false) with check (false);
+revoke all on table public.deprecated_table_registry from anon, authenticated;
+alter table public.restore_tests enable row level security;
+drop policy if exists psb_server_only_restore_tests on public.restore_tests;
+create policy psb_server_only_restore_tests on public.restore_tests for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_restore_tests_auth on public.restore_tests;
+create policy psb_server_only_restore_tests_auth on public.restore_tests for all to authenticated using (false) with check (false);
+revoke all on table public.restore_tests from anon, authenticated;
+alter table public.audit_event_requirements enable row level security;
+drop policy if exists psb_server_only_audit_event_requirements on public.audit_event_requirements;
+create policy psb_server_only_audit_event_requirements on public.audit_event_requirements for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_audit_event_requirements_auth on public.audit_event_requirements;
+create policy psb_server_only_audit_event_requirements_auth on public.audit_event_requirements for all to authenticated using (false) with check (false);
+revoke all on table public.audit_event_requirements from anon, authenticated;
+-- Direct browser table access is intentionally disabled in the PSB server-side architecture.
+
+-- Role workspace hardening: probation review is server-mediated and client-denied by default.
+alter table public.probation_reviews enable row level security;
+revoke all on table public.probation_reviews from anon, authenticated;
+drop policy if exists probation_reviews_server_only on public.probation_reviews;
+create policy probation_reviews_server_only on public.probation_reviews
+for all to authenticated
+using (false)
+with check (false);
+
+-- Exact authorization-case evidence links are server-managed; direct browser access is denied.
+alter table public.authorization_evidence_links enable row level security;
+revoke all on table public.authorization_evidence_links from anon, authenticated;
+drop policy if exists authorization_evidence_links_deny on public.authorization_evidence_links;
+create policy authorization_evidence_links_deny on public.authorization_evidence_links for all to anon, authenticated using (false) with check (false);
+
+-- Gap 5: technical review assignment is server-mediated and never directly browser-writable.
+alter table public.technical_review_assignments enable row level security;
+revoke all on table public.technical_review_assignments from anon, authenticated;
+drop policy if exists psb_server_only_technical_review_assignments on public.technical_review_assignments;
+create policy psb_server_only_technical_review_assignments on public.technical_review_assignments
+for all to authenticated using (false) with check (false);
+
+alter table public.qms_management_review_actions enable row level security;
+drop policy if exists psb_server_only_qms_management_review_actions on public.qms_management_review_actions;
+create policy psb_server_only_qms_management_review_actions on public.qms_management_review_actions for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_qms_management_review_actions_auth on public.qms_management_review_actions;
+create policy psb_server_only_qms_management_review_actions_auth on public.qms_management_review_actions for all to authenticated using (false) with check (false);
+revoke all on table public.qms_management_review_actions from anon, authenticated;
+
+
+-- Gap 18: certificate history is immutable server-side audit data.
+alter table public.authorization_certificate_history enable row level security;
+revoke all on table public.authorization_certificate_history from anon, authenticated;
+drop policy if exists psb_server_only_authorization_certificate_history on public.authorization_certificate_history;
+create policy psb_server_only_authorization_certificate_history on public.authorization_certificate_history
+for all to authenticated using (false) with check (false);
+drop policy if exists psb_server_only_authorization_certificate_history_anon on public.authorization_certificate_history;
+create policy psb_server_only_authorization_certificate_history_anon on public.authorization_certificate_history
+for all to anon using (false) with check (false);
+
+-- Practical/Witness professional workflow: all access is server-mediated.
+alter table public.practical_requirement_templates enable row level security;
+revoke all on table public.practical_requirement_templates from anon, authenticated;
+drop policy if exists psb_server_only_practical_requirement_templates on public.practical_requirement_templates;
+create policy psb_server_only_practical_requirement_templates on public.practical_requirement_templates for all to anon, authenticated using (false) with check (false);
+
+alter table public.practical_activities enable row level security;
+revoke all on table public.practical_activities from anon, authenticated;
+drop policy if exists psb_server_only_practical_activities on public.practical_activities;
+create policy psb_server_only_practical_activities on public.practical_activities for all to anon, authenticated using (false) with check (false);
+
+alter table public.practical_assessments enable row level security;
+revoke all on table public.practical_assessments from anon, authenticated;
+drop policy if exists psb_server_only_practical_assessments on public.practical_assessments;
+create policy psb_server_only_practical_assessments on public.practical_assessments for all to anon, authenticated using (false) with check (false);
+
+alter table public.practical_evidence_links enable row level security;
+revoke all on table public.practical_evidence_links from anon, authenticated;
+drop policy if exists psb_server_only_practical_evidence_links on public.practical_evidence_links;
+create policy psb_server_only_practical_evidence_links on public.practical_evidence_links for all to anon, authenticated using (false) with check (false);
+
+-- GM personal watchlist is server-mediated and inaccessible directly to browser clients.
+alter table public.gm_watchlist enable row level security;
+drop policy if exists psb_server_only_gm_watchlist on public.gm_watchlist;
+create policy psb_server_only_gm_watchlist on public.gm_watchlist for all to anon using (false) with check (false);
+drop policy if exists psb_server_only_gm_watchlist_auth on public.gm_watchlist;
+create policy psb_server_only_gm_watchlist_auth on public.gm_watchlist for all to authenticated using (false) with check (false);
+revoke all on table public.gm_watchlist from anon, authenticated;
+
+alter table public.qualification_paths enable row level security;
+revoke all on table public.qualification_paths from anon, authenticated;
+
+alter table public.qualification_path_training enable row level security;
+revoke all on table public.qualification_path_training from anon, authenticated;
+
+alter table public.qualification_assignments enable row level security;
+revoke all on table public.qualification_assignments from anon, authenticated;
+
+-- Qualification curriculum v2 and case-based CRB board tables (migration 038)
+alter table public.qualification_path_versions enable row level security;
+revoke all on table public.qualification_path_versions from anon, authenticated;
+alter table public.qualification_path_levels enable row level security;
+revoke all on table public.qualification_path_levels from anon, authenticated;
+alter table public.qualification_modules enable row level security;
+revoke all on table public.qualification_modules from anon, authenticated;
+alter table public.qualification_level_modules enable row level security;
+revoke all on table public.qualification_level_modules from anon, authenticated;
+alter table public.qualification_module_requirements enable row level security;
+revoke all on table public.qualification_module_requirements from anon, authenticated;
+alter table public.qualification_assignment_state enable row level security;
+revoke all on table public.qualification_assignment_state from anon, authenticated;
+alter table public.probation_transitions enable row level security;
+revoke all on table public.probation_transitions from anon, authenticated;
+alter table public.crb_case_board_assignments enable row level security;
+revoke all on table public.crb_case_board_assignments from anon, authenticated;
+alter table public.qualification_module_training enable row level security;
+revoke all on table public.qualification_module_training from anon, authenticated;
+alter table public.training_resources enable row level security;
+revoke all on table public.training_resources from anon, authenticated;
+alter table public.training_live_sessions enable row level security;
+revoke all on table public.training_live_sessions from anon, authenticated;
+alter table public.training_assessment_configs enable row level security;
+revoke all on table public.training_assessment_configs from anon, authenticated;
+alter table public.training_assessment_sessions enable row level security;
+revoke all on table public.training_assessment_sessions from anon, authenticated;
+alter table public.guided_practical_training enable row level security;
+revoke all on table public.guided_practical_training from anon, authenticated;
+alter table public.module_practical_gates enable row level security;
+revoke all on table public.module_practical_gates from anon, authenticated;
+alter table public.independent_practical_records enable row level security;
+revoke all on table public.independent_practical_records from anon, authenticated;
+
+-- Qualification completion closure (migration 041)
+alter table public.training_resource_progress enable row level security;
+revoke all on table public.training_resource_progress from anon, authenticated;
+alter table public.training_session_attendance enable row level security;
+revoke all on table public.training_session_attendance from anon, authenticated;
+alter table public.module_trainer_readiness enable row level security;
+revoke all on table public.module_trainer_readiness from anon, authenticated;
+alter table public.qualification_module_progress enable row level security;
+revoke all on table public.qualification_module_progress from anon, authenticated;
+alter table public.probation_progression_approvals enable row level security;
+revoke all on table public.probation_progression_approvals from anon, authenticated;
+alter table public.independent_practical_assessments enable row level security;
+revoke all on table public.independent_practical_assessments from anon, authenticated;
+
+-- Migration 042 server-only curriculum publishing tables
+alter table public.training_mcq_drafts enable row level security;
+revoke all on table public.training_mcq_drafts from anon, authenticated;
+alter table public.qualification_practical_requirements enable row level security;
+revoke all on table public.qualification_practical_requirements from anon, authenticated;
+
+-- Migration 043 security/runtime tables
+alter table public.login_security_state enable row level security;
+revoke all on table public.login_security_state from anon, authenticated;
+alter table public.case_correspondence enable row level security;
+revoke all on table public.case_correspondence from anon, authenticated;

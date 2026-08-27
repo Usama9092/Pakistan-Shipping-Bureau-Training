@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "checks": {
+    "roles_configured": true,
+    "routes_mapped": true,
+    "role_gap_loop_17": true,
+    "schema_rls_exact_parity": true,
+    "no_patch_temp_artifacts": true,
+    "migration_continuity": true,
+    "embedded_security_parity": true,
+    "plain_pytest": true
+  },
+  "roles": 15,
+  "routes": 60,
+  "schema_tables": 106,
+  "rls_tables": 106,
+  "client_revokes": 106,
+  "migrations": "001-045",
+  "patch_temp_artifacts": [],
+  "external_staging_required": [
+    "Supabase JWT/RLS behavioral verification",
+    "Render multi-instance continuity",
+    "browser role regression",
+    "realistic load",
+    "real backup/restore"
+  ]
+}

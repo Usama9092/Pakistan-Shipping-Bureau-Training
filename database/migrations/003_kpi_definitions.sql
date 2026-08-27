@@ -1,0 +1,2 @@
+create table if not exists kpi_definitions (kpi_id text primary key, name text unique not null, description text, formula text, weight real, target real, period_type text, source_modules text, owner_role text, version text, effective_from text, effective_to text, active text, created_on text, updated_on text);
+create index if not exists kpi_definitions_active_idx on kpi_definitions(active, effective_from);

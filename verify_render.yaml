@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: psb-certificate-verify
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-verify.txt
+    startCommand: uvicorn verify_service:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false

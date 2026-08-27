@@ -1,0 +1,60 @@
+{
+  "disciplines": [
+    "Hull",
+    "Machinery",
+    "Electrical",
+    "Industrial",
+    "Plan",
+    "QMS"
+  ],
+  "default_allowed": [
+    "All Technical"
+  ],
+  "roles": {
+    "Surveyor": [
+      "Hull",
+      "Machinery",
+      "Electrical",
+      "Industrial"
+    ],
+    "Industrial Surveyor": [
+      "Industrial"
+    ],
+    "Plan Appraiser": [
+      "Plan"
+    ],
+    "QMS Auditor": [
+      "QMS"
+    ],
+    "QMR": [
+      "QMS"
+    ],
+    "Rule Development Rep": [
+      "Hull",
+      "Machinery",
+      "Electrical",
+      "Industrial",
+      "Plan",
+      "QMS"
+    ],
+    "Department Manager": [
+      "Hull",
+      "Machinery",
+      "Electrical",
+      "Industrial",
+      "Plan"
+    ],
+    "NSC Surveyor": [
+      "Hull",
+      "Machinery",
+      "Electrical",
+      "Industrial"
+    ],
+    "In-Service Surveyor": [
+      "Hull",
+      "Machinery",
+      "Electrical",
+      "Industrial"
+    ]
+  }
+}

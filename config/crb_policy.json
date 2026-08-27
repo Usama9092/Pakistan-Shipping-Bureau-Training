@@ -1,0 +1,7 @@
+{
+  "mandatory_roles": ["Management"],
+  "permitted_roles": ["Management"],
+  "quorum": 1,
+  "approval_rule": "All voting members present must recommend approval",
+  "notes": "Management is mandatory. Extend permitted_roles and quorum when PSB finalizes the remaining CRB composition."
+}

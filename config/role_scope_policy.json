@@ -1,0 +1,364 @@
+{
+  "Trainer": {
+    "Training": [
+      "Assigned"
+    ],
+    "CPD": [
+      "Assigned",
+      "Own"
+    ],
+    "Competency": [
+      "Assigned"
+    ],
+    "Practical / Witness": [
+      "Assigned"
+    ],
+    "Development Plans": [
+      "Assigned"
+    ]
+  },
+  "Surveyor": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "Job Allocation": [
+      "Own"
+    ],
+    "Client Feedback": [
+      "Own"
+    ],
+    "Performance & KPI": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own",
+      "Assigned"
+    ]
+  },
+  "Plan Appraiser": {
+    "Technical Reviews": [
+      "Assigned",
+      "Own"
+    ],
+    "Competency": [
+      "Assigned",
+      "Own"
+    ],
+    "Authorization": [
+      "Assigned",
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own",
+      "Assigned"
+    ]
+  },
+  "Industrial Surveyor": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "Job Allocation": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own",
+      "Assigned"
+    ]
+  },
+  "Rule Development Rep": {
+    "Interpretation Portal": [
+      "Department"
+    ],
+    "Knowledge Library": [
+      "Organization-wide"
+    ],
+    "Technical Reviews": [
+      "Department"
+    ],
+    "Rule Development": [
+      "Department"
+    ]
+  },
+  "Trainee": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Development Plans": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "NCR / Corrective Action": [
+      "Own"
+    ],
+    "Performance & KPI": [
+      "Own"
+    ]
+  },
+  "QMS Auditor": {
+    "QMS": [
+      "Department"
+    ],
+    "NCR / Corrective Action": [
+      "Department"
+    ],
+    "Technical Reviews": [
+      "Department"
+    ],
+    "Accreditation Readiness": [
+      "Department"
+    ]
+  },
+  "QMR": {
+    "QMS": [
+      "Organization-wide"
+    ],
+    "NCR / Corrective Action": [
+      "Organization-wide"
+    ],
+    "Accreditation Readiness": [
+      "Organization-wide"
+    ]
+  },
+  "On Probation": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Development Plans": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "Job Allocation": [
+      "Own"
+    ]
+  },
+  "GM": {
+    "Dashboard": [
+      "Organization-wide"
+    ],
+    "Employee Profile": [
+      "Organization-wide"
+    ],
+    "Development Plans": [
+      "Organization-wide"
+    ],
+    "Succession Planning": [
+      "Organization-wide"
+    ],
+    "Workforce Planning": [
+      "Organization-wide"
+    ],
+    "Training Dashboard": [
+      "Organization-wide"
+    ],
+    "Training Matrix": [
+      "Organization-wide"
+    ],
+    "Training": [
+      "Organization-wide"
+    ],
+    "CPD": [
+      "Organization-wide"
+    ],
+    "Competency": [
+      "Organization-wide"
+    ],
+    "Practical / Witness": [
+      "Organization-wide"
+    ],
+    "Gap Advisor": [
+      "Organization-wide"
+    ],
+    "NCR / Corrective Action": [
+      "Organization-wide"
+    ],
+    "Knowledge Library": [
+      "Organization-wide"
+    ],
+    "Authorization": [
+      "Organization-wide"
+    ],
+    "CRB": [
+      "Organization-wide"
+    ],
+    "Technical Authority": [
+      "Organization-wide"
+    ],
+    "Restrictions": [
+      "Organization-wide"
+    ],
+    "Annual Review": [
+      "Organization-wide"
+    ],
+    "Revalidation": [
+      "Organization-wide"
+    ],
+    "Technical Reviews": [
+      "Organization-wide"
+    ],
+    "QMS": [
+      "Organization-wide"
+    ],
+    "Accreditation Readiness": [
+      "Organization-wide"
+    ],
+    "Interpretation Portal": [
+      "Organization-wide"
+    ],
+    "Job Allocation": [
+      "Organization-wide"
+    ],
+    "Client Feedback": [
+      "Organization-wide"
+    ],
+    "Performance & KPI": [
+      "Organization-wide"
+    ],
+    "Administration": [
+      "Organization-wide"
+    ],
+    "Users & Roles": [
+      "Organization-wide"
+    ],
+    "Departments": [
+      "Organization-wide"
+    ],
+    "Permissions": [
+      "Organization-wide"
+    ],
+    "System Settings": [
+      "Organization-wide"
+    ],
+    "Audit Trail": [
+      "Organization-wide"
+    ],
+    "Backup & Recovery": [
+      "Organization-wide"
+    ]
+  },
+  "Department Manager": {
+    "Department Qualification": [
+      "Department"
+    ],
+    "Practical / Witness": [
+      "Department",
+      "Assigned"
+    ],
+    "Competency": [
+      "Department"
+    ],
+    "Authorization": [
+      "Department"
+    ],
+    "Knowledge Library": [
+      "Organization-wide"
+    ]
+  },
+  "Management": {
+    "Authorization": [
+      "Organization-wide"
+    ],
+    "CRB": [
+      "Organization-wide"
+    ],
+    "Certificates": [
+      "Organization-wide"
+    ],
+    "People & Capability": [
+      "Organization-wide"
+    ]
+  },
+  "NSC Surveyor": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "Job Allocation": [
+      "Own"
+    ],
+    "Client Feedback": [
+      "Own"
+    ],
+    "Performance & KPI": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own",
+      "Assigned"
+    ]
+  },
+  "In-Service Surveyor": {
+    "Training": [
+      "Own"
+    ],
+    "CPD": [
+      "Own"
+    ],
+    "Competency": [
+      "Own"
+    ],
+    "Authorization": [
+      "Own"
+    ],
+    "Job Allocation": [
+      "Own"
+    ],
+    "Client Feedback": [
+      "Own"
+    ],
+    "Performance & KPI": [
+      "Own"
+    ],
+    "Practical / Witness": [
+      "Own",
+      "Assigned"
+    ]
+  }
+}

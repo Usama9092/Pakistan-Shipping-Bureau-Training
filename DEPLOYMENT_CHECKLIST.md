@@ -111,9 +111,9 @@ Once deployment completes (green "Live" status):
 1. Click your service URL (e.g., `https://psb-hrdm-training.onrender.com`)
 2. **Expected**: App loads with login screen
 3. **If error "Persistent database is not configured"**: Go back to Step 4 and verify `DATABASE_URL` is set
-4. **Login with demo account**:
-   - Username: `admin`
-   - Password: `Admin@1234`
+4. **Initialize/login with the deployment administrator**:
+   - Configure `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_LOGIN`, and `INITIAL_ADMIN_PASSWORD` in the hosting environment.
+   - Demo credentials are disabled by default.
 5. **Test Data Persistence**:
    - Create a new training: Admin Panel → Manage Training → Add Training
    - Create new user: Admin Panel → Manage Users → Add User
@@ -233,3 +233,13 @@ If deployment fails:
 Last Updated: Today  
 Application Version: cfccb92  
 All systems: ✅ GO
+
+## Secure initialization
+Configure `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_LOGIN`, and `INITIAL_ADMIN_PASSWORD` as deployment environment variables for the first administrator. Do not commit credentials to the repository.
+
+
+## Role Alignment / Live Verification
+- Explicit navigation profiles are defined for every configured role.
+- Page action authorization uses the central RBAC service for upgraded workflows.
+- Public certificate verification is available through `?verify=<certificate_id>`.
+- Supabase JWT/RLS, Render multi-instance and browser/load tests must be executed in the real deployment environment.

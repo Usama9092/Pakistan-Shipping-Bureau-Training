@@ -1,0 +1,57 @@
+{
+  "witness_roles": [
+    "Surveyor",
+    "NSC Surveyor",
+    "In-Service Surveyor",
+    "Industrial Surveyor",
+    "Plan Appraiser",
+    "Department Manager"
+  ],
+  "senior_witness_roles": [
+    "Department Manager"
+  ],
+  "workspace_modes": {
+    "Trainee": [
+      "My Practical & Witness"
+    ],
+    "On Probation": [
+      "My Practical & Witness"
+    ],
+    "Surveyor": [
+      "My Practical & Witness",
+      "My Witness Assessments"
+    ],
+    "NSC Surveyor": [
+      "My Practical & Witness",
+      "My Witness Assessments"
+    ],
+    "In-Service Surveyor": [
+      "My Practical & Witness",
+      "My Witness Assessments"
+    ],
+    "Industrial Surveyor": [
+      "My Practical & Witness",
+      "My Witness Assessments"
+    ],
+    "Plan Appraiser": [
+      "My Practical & Witness",
+      "My Witness Assessments"
+    ],
+    "Admin": [
+      "Practical Governance"
+    ],
+    "Management": [
+      "Practical Governance"
+    ],
+    "QMR": [
+      "Practical Governance"
+    ],
+    "Department Manager": [
+      "My Witness Assessments",
+      "Practical Governance"
+    ],
+    "Trainer": [
+      "Assigned Learner Progress"
+    ]
+  }
+}

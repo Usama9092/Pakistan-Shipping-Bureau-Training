@@ -99,9 +99,8 @@ streamlit run app.py
 
 **Default demo logins:**
 ```text
-admin / Admin@1234
-trainer / Trainer@1234
-tutor / Tutor@1234
+Set INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD in the deployment environment for the first administrator.
+Demo credentials are disabled by default. For controlled development testing only, set ENABLE_DEMO_SEED=true and DEMO_PASSWORD in the environment.
 ```
 
 ## Data Persistence Verification

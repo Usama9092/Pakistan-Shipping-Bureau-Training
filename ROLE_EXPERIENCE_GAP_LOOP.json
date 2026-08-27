@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "01_current_role_model": true,
+    "02_no_tutor_role": true,
+    "03_no_removed_roles": true,
+    "04_trainer_path_builder": true,
+    "05_module_theory": true,
+    "06_timed_mcq": true,
+    "07_resource_completion": true,
+    "08_guided_practical": true,
+    "09_independent_assessment": true,
+    "10_module_progress": true,
+    "11_probation_approval": true,
+    "12_department_manager": true,
+    "13_crb_case_based": true,
+    "14_management_authorization": true,
+    "15_qms_unified": true,
+    "16_rbac_central": true,
+    "17_security_harness": true
+  },
+  "passed": 17,
+  "total": 17,
+  "status": "PASS"
+}

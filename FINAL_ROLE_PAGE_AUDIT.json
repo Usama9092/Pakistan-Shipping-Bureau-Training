@@ -1,0 +1,24 @@
+{
+  "roles": [
+    "Admin",
+    "Department Manager",
+    "GM",
+    "In-Service Surveyor",
+    "Industrial Surveyor",
+    "Management",
+    "NSC Surveyor",
+    "On Probation",
+    "Plan Appraiser",
+    "QMR",
+    "QMS Auditor",
+    "Rule Development Rep",
+    "Surveyor",
+    "Trainee",
+    "Trainer"
+  ],
+  "role_count": 15,
+  "route_count": 60,
+  "duplicate_labels_within_role": {},
+  "unmapped_targets": [],
+  "status": "PASS"
+}

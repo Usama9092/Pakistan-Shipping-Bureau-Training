@@ -1,0 +1,2 @@
+-- Explicit server-only control-table contract. All these tables are RLS-enabled and client privileges are revoked.
+-- This migration is intentionally idempotent and complements the all-table 023 contract.

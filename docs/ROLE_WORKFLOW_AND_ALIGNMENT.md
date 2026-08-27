@@ -1,39 +1,7 @@
-# Role Workflow and International Alignment
+# Current Role Workflow and Alignment
 
-## Admin
-Controls users, role assignment, trainee path, mentors, competency matrix, authorization matrix, database, backups and audit logs.
+Active account roles: GM, Management, Admin, Department Manager, Trainer, Trainee, On Probation, Surveyor, Industrial Surveyor, Plan Appraiser, QMS Auditor, QMR and Rule Development Rep.
 
-## Trainer
-Creates theoretical modules and courses, uploads files, schedules training, generates MCQs, assigns roles/persons and monitors training completion.
+CRB is a case assignment, not an account role. Lead Auditor is an audit assignment under QMS Auditor. Trainer owns qualification-path configuration, learner training, mentoring/development and probation support. Department Manager is scoped to the assigned technical department.
 
-## Tutor/Mentor
-Controls development plans, witness surveys, supervised surveys, plan-review assessments and competency recommendation.
-
-## Principal Surveyor / Chief Plan Appraiser / Lead Auditor
-Technical authority layer between tutor and CRB/management.
-
-## Technical Manager
-Technical review of competency evidence and authorization requests.
-
-## QMR
-QMS compliance review, audit trail, CAPA, evidence review and CRB participation.
-
-## CRB
-Competency Review Board reviews evidence before final authorization.
-
-## Management
-Final approval and authorization certificate issue.
-
-## Job Coordinator
-Allocates work only if person is authorized, available, correct scope, correct competency level, suitable KPI and risk match.
-
-## Surveyor / Plan Appraiser / Auditor / Trainee
-Completes theoretical training, LMS/SCORM, assessment, witness surveys, supervised activities, plan reviews, CPD, annual review and reauthorization.
-
-## World-class flow
-Development Plan → Theoretical Training → Assessment → Training Certificate → Witness Survey → Supervised/Plan Review → Tutor Recommendation → Technical/QMS Review → CRB → Management Authorization → QR Certificate → Job Allocation → Annual Review → Refresher/Reauthorization.
-
-
-# PLUS advanced modules
-
-The final package adds technical authorities, survey report review, plan QA, competency NCR, gap advisor, annual board, restrictions, client feedback, succession, workforce planning, accreditation readiness, and interpretation portal.
+Current qualification flow: Admin account creation → Trainer Qualification Workspace → Path/Version/Level/Module → Theory/Materials/Live Session/Published MCQ → Guided Practical/Witness → Trainer Readiness → Independent Practical → Competency → Department Recommendation → CRB → Final Authorization → one-year Digital Certificate.
