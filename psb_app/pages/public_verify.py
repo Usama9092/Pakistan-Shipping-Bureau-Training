@@ -45,7 +45,6 @@ def _log_qr_event(cert_id: str, result: str, fingerprint: str, response_code: st
         pass
 
 def public_qr_verify_page(cert_id: str) -> None:
-    apply_style()
     cert_id = clean(cert_id)[:128]
     fingerprint = _request_fingerprint()
     path = "/?verify=" + cert_id
