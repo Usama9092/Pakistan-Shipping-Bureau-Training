@@ -1,10 +1,10 @@
 -- Phase: authoritative role/scope alignment for direct Supabase reads.
 -- The application remains the primary server-side enforcement layer.
 create or replace function public.psb_current_user_id() returns text language sql stable security definer set search_path=public as $$
-  select user_id from public.users where auth_user_id=auth.uid() limit 1
+  select user_id from public.users where auth_user_id=auth.uid()::text limit 1
 $$;
 create or replace function public.psb_current_role() returns text language sql stable security definer set search_path=public as $$
-  select role from public.users where auth_user_id=auth.uid() limit 1
+  select role from public.users where auth_user_id=auth.uid()::text limit 1
 $$;
 create or replace function public.psb_can_access_user(target text) returns boolean language plpgsql stable security definer set search_path=public as $$
 declare me text := public.psb_current_user_id(); role_name text := coalesce(public.psb_current_role(),'');
