@@ -325,7 +325,8 @@ def convert_numpy_types(row: dict) -> dict:
     return converted
 
 _SERVER_INTERNAL_TABLES = {
-    'schema_migrations','audit_trail','auth_sessions','scheduler_runs','qr_verification_events','notifications'
+    'schema_migrations','audit_trail','auth_sessions','login_security_state',
+    'scheduler_runs','qr_verification_events','notifications'
 }
 
 def _mutation_guard(table: str, action: str, row: dict | None) -> None:
@@ -771,3 +772,4 @@ def _user_label_series(*a, **k): return _lazy_service_call('psb_app.services.ui_
 def select_person(*a, **k): return _lazy_service_call('psb_app.services.ui_helpers', 'select_person', *a, **k)
 
 __all__ = [k for k in globals() if not k.startswith('__')]
+
