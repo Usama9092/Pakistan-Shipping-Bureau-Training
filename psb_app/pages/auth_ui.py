@@ -285,15 +285,14 @@ def require_login() -> dict:
 
 def password_change_page(actor: dict) -> None:
     st.title('Set a New Password')
-    st.caption('For security, this account must set a new password before accessing the PSB portal.')
+    st.caption('Your temporary password has been verified. Set and confirm a new private password to access the PSB portal.')
     with st.form('forced_password_change', clear_on_submit=True):
-        current = st.text_input('Current / temporary password', type='password')
         new1 = st.text_input('New password', type='password')
         new2 = st.text_input('Confirm new password', type='password')
         submit = st.form_submit_button('Change Password', type='primary')
     if submit:
-        if not current or not new1 or (not new2):
-            st.error('All password fields are required.')
+        if not new1 or not new2:
+            st.error('Both new password fields are required.')
             return
         if new1 != new2:
             st.error('The new passwords do not match.')
@@ -304,8 +303,8 @@ def password_change_page(actor: dict) -> None:
             return
         uidv = actor_get(actor, 'user_id')
         row = db_where('users', 'user_id = :uid', (('uid', uidv),))
-        if row.empty or not verify_password(str(row.iloc[0].get('password_hash', '')), current)[0]:
-            st.error('Current password is incorrect.')
+        if row.empty or not st.session_state.get('logged_in') or uidv != actor_get(st.session_state.get('user', {}), 'user_id'):
+            st.error('Your authenticated session could not be verified. Please sign in again.')
             return
         db_update('users', 'user_id', uidv, {'password_hash': phash(new1), 'force_password_change': 'No', 'password_changed_on': now()})
         st.session_state['must_change_password'] = False

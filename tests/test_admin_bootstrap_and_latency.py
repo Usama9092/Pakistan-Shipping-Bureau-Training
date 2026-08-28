@@ -22,3 +22,11 @@ def test_remote_database_pre_ping_is_opt_in():
     source = (ROOT / 'core/database_gateway.py').read_text(encoding='utf-8')
     assert "DB_POOL_PRE_PING" in source
     assert "'false'" in source
+
+
+def test_forced_change_reuses_the_authenticated_login_session():
+    source = (ROOT / 'psb_app/pages/auth_ui.py').read_text(encoding='utf-8')
+    section = source.split('def password_change_page', 1)[1].split('def sidebar', 1)[0]
+    assert "Current / temporary password" not in section
+    assert "st.session_state.get('logged_in')" in section
+    assert "Confirm new password" in section
