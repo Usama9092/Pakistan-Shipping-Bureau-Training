@@ -6,7 +6,7 @@
   "schema_tables": 106,
   "rls_enabled": 106,
   "client_revokes": 106,
-  "migration_versions": "001-045",
+  "migration_versions": "001-046",
   "production_security_model": "server-mediated; direct anon/authenticated table access revoked",
   "practical_witness_model": "requirement template \u2192 activity/job \u2192 eligible witness \u2192 evidence links \u2192 controlled assessment \u2192 competency readiness",
   "external_staging_required": [
@@ -28,7 +28,7 @@
   ],
   "role_model_change": "Principal Surveyor, Chief Plan Appraiser and Technical Manager removed; Department Manager added as admin-assigned department-scoped role",
   "current_phase_end": "Authorization approval and certificate; downstream job/annual lifecycle intentionally out of current navigation scope",
-  "migration_max": 45,
+  "migration_max": 46,
   "current_phase": "Qualification curriculum through Authorization/Certificate with case-based CRB",
   "role_model_notes": [
     "Lead Auditor merged into QMS Auditor as audit assignment responsibility",
@@ -38,7 +38,7 @@
   ],
   "rls_tables": 106,
   "direct_client_revokes": 106,
-  "migrations": "001-045",
+  "migrations": "001-046",
   "role_model": "Trainer unifies qualification training, mentoring, development and probation support; Tutor/Mentor is retired as a separate role",
   "static_validation": "122/122 tests; production gate PASS; compileall PASS; hardened audit contracts PASS",
   "crb_current_policy": "Management mandatory; additional permitted CRB roles intentionally configurable in config/crb_policy.json pending PSB final composition",
