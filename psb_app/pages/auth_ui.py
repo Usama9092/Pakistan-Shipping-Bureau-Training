@@ -311,7 +311,11 @@ def password_change_page(actor: dict) -> None:
         if not uidv or not st.session_state.get('logged_in'):
             st.error('Your authenticated session could not be verified. Please sign in again.')
             return
-        db_update('users', 'user_id', uidv, {'password_hash': phash(new1), 'force_password_change': 'No', 'password_changed_on': now()})
+        # A forced first-login password change is an authenticated self-service
+        # security operation.  It must not depend on the user's business-module
+        # permission to edit Users & Roles.
+        with system_write('authenticated_self_password_change'):
+            db_update('users', 'user_id', uidv, {'password_hash': phash(new1), 'force_password_change': 'No', 'password_changed_on': now()})
         st.session_state['must_change_password'] = False
         audit('Password Changed', 'Forced password change completed', actor=actor, entity_type='User', entity_id=uidv, reason='Required account security change')
         st.success('Password changed successfully. Please continue to the PSB portal.')
