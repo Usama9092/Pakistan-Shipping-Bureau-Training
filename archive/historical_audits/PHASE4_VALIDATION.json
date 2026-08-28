@@ -1,0 +1,62 @@
+{
+  "checks": {
+    "global_design_system": {
+      "ok": true,
+      "detail": "shared UX tokens/components"
+    },
+    "fixed_sidebar": {
+      "ok": true,
+      "detail": "fixed sidebar width"
+    },
+    "sidebar_toggle_hidden": {
+      "ok": true,
+      "detail": "sidebar toggle suppressed"
+    },
+    "visible_signout": {
+      "ok": true,
+      "detail": "sign-out component exists"
+    },
+    "role_header": {
+      "ok": true,
+      "detail": "role-aware global header"
+    },
+    "global_page_error_boundary": {
+      "ok": true,
+      "detail": "global error handling"
+    },
+    "global_spinner": {
+      "ok": true,
+      "detail": "global loading state"
+    },
+    "production_module": {
+      "ok": true,
+      "detail": "production module"
+    },
+    "xsrf_enabled": {
+      "ok": true,
+      "detail": "Streamlit XSRF"
+    },
+    "cors_disabled": {
+      "ok": true,
+      "detail": "CORS disabled"
+    },
+    "legacy_files_removed": {
+      "ok": true,
+      "detail": "legacy Files workflow removed"
+    },
+    "legacy_management_removed": {
+      "ok": true,
+      "detail": "legacy Management workflow removed"
+    },
+    "embedded_copy_synced": {
+      "ok": true,
+      "detail": "embedded main synced"
+    },
+    "explicit_role_navigation": {
+      "ok": true,
+      "detail": "18 explicit roles"
+    }
+  },
+  "errors": [],
+  "status": "PASS"
+}

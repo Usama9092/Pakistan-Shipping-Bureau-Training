@@ -1,0 +1,183 @@
+{
+  "iterations_run": 2,
+  "stable_local_pass": true,
+  "final_gap_audit": {
+    "checks": {
+      "01_rls_all_tables": {
+        "status": "PASS",
+        "detail": "67 schema tables; 0 missing RLS enable"
+      },
+      "02_client_privileges_denied": {
+        "status": "PASS",
+        "detail": "0 tables without explicit client revoke"
+      },
+      "03_record_authorization_boundary": {
+        "status": "PASS",
+        "detail": "single mutation authorization API"
+      },
+      "04_no_page_write_sql_bypass": {
+        "status": "PASS",
+        "detail": "all page writes go through guarded db_* helpers"
+      },
+      "05_internal_mutation_context": {
+        "status": "PASS",
+        "detail": "system writes require explicit context"
+      },
+      "06_scope_contract_explicit": {
+        "status": "PASS",
+        "detail": "role/module scopes declared"
+      },
+      "07_crb_case_scope": {
+        "status": "PASS",
+        "detail": "CRB uses explicit case-assignee scope"
+      },
+      "08_qr_logging_ratelimit": {
+        "status": "PASS",
+        "detail": "public verification telemetry and throttling"
+      },
+      "09_rbac_centralized": {
+        "status": "PASS",
+        "detail": "central authorization layer"
+      },
+      "10_common_facade": {
+        "status": "PASS",
+        "detail": "common.py is 7 lines"
+      },
+      "11_no_page_ddl": {
+        "status": "PASS",
+        "detail": "no page-level schema creation"
+      },
+      "12_no_active_sessions_dict": {
+        "status": "PASS",
+        "detail": "sessions are DB-backed"
+      },
+      "13_audit_coverage": {
+        "status": "PASS",
+        "detail": "machine-auditable audit registry/checker present"
+      },
+      "14_backup_gate": {
+        "status": "PASS",
+        "detail": "backup/restore release gate documented"
+      },
+      "15_scheduler_health": {
+        "status": "PASS",
+        "detail": "retry/backoff telemetry"
+      },
+      "16_kpi_governance": {
+        "status": "PASS",
+        "detail": "KPI definitions versioned with business approval metadata"
+      },
+      "17_public_verify_service": {
+        "status": "PASS",
+        "detail": "isolated public verification service artifacts present"
+      },
+      "EXTERNAL_1_SUPABASE_JWT_RLS": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_2_RENDER_MULTII_INSTANCE": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_3_BROWSER_REGRESSION": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_4_LOAD_TEST": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_5_REAL_BACKUP_RESTORE": "REQUIRES_STAGING_EXECUTION"
+    },
+    "failed_static_checks": [],
+    "overall_static_status": "PASS"
+  },
+  "results": [
+    {
+      "iteration": 1,
+      "command": "scripts/final_gap_audit.py",
+      "rc": 0,
+      "stdout": "{\n  \"checks\": {\n    \"01_rls_all_tables\": {\n      \"status\": \"PASS\",\n      \"detail\": \"67 schema tables; 0 missing RLS enable\"\n    },\n    \"02_client_privileges_denied\": {\n      \"status\": \"PASS\",\n      \"detail\": \"0 tables without explicit client revoke\"\n    },\n    \"03_record_authorization_boundary\": {\n      \"status\": \"PASS\",\n      \"detail\": \"single mutation authorization API\"\n    },\n    \"04_no_page_write_sql_bypass\": {\n      \"status\": \"PASS\",\n      \"detail\": \"all page writes go through guarded db_* helpers\"\n    },\n    \"05_internal_mutation_context\": {\n      \"status\": \"PASS\",\n      \"detail\": \"system writes require explicit context\"\n    },\n    \"06_scope_contract_explicit\": {\n      \"status\": \"PASS\",\n      \"detail\": \"role/module scopes declared\"\n    },\n    \"07_crb_case_scope\": {\n      \"status\": \"PASS\",\n      \"detail\": \"CRB uses explicit case-assignee scope\"\n    },\n    \"08_qr_logging_ratelimit\": {\n      \"status\": \"PASS\",\n      \"detail\": \"public verification telemetry and throttling\"\n    },\n    \"09_rbac_centralized\": {\n      \"status\": \"PASS\",\n      \"detail\": \"central authorization layer\"\n    },\n    \"10_common_facade\": {\n      \"status\": \"PASS\",\n      \"detail\": \"common.py is 7 lines\"\n    },\n    \"11_no_page_ddl\": {\n      \"status\": \"PASS\",\n      \"detail\": \"no page-level schema creation\"\n    },\n    \"12_no_active_sessions_dict\": {\n      \"status\": \"PASS\",\n      \"detail\": \"sessions are DB-backed\"\n    },\n    \"13_audit_coverage\": {\n      \"status\": \"PASS\",\n      \"detail\": \"machine-auditable audit registry/checker present\"\n    },\n    \"14_backup_gate\": {\n      \"status\": \"PASS\",\n      \"detail\": \"backup/restore release gate documented\"\n    },\n    \"15_scheduler_health\": {\n      \"status\": \"PASS\",\n      \"detail\": \"retry/backoff telemetry\"\n    },\n    \"16_kpi_governance\": {\n      \"status\": \"PASS\",\n      \"detail\": \"KPI definitions versioned with business approval metadata\"\n    },\n    \"17_public_verify_service\": {\n      \"status\": \"PASS\",\n      \"detail\": \"isolated public verification service artifacts present\"\n    },\n    \"EXTERNAL_1_SUPABASE_JWT_RLS\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_2_RENDER_MULTII_INSTANCE\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_3_BROWSER_REGRESSION\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_4_LOAD_TEST\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_5_REAL_BACKUP_RESTORE\": \"REQUIRES_STAGING_EXECUTION\"\n  },\n  \"failed_static_checks\": [],\n  \"overall_static_status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "scripts/phase4_static_check.py",
+      "rc": 0,
+      "stdout": "{\n  \"checks\": {\n    \"global_design_system\": {\n      \"ok\": true,\n      \"detail\": \"shared UX tokens/components\"\n    },\n    \"fixed_sidebar\": {\n      \"ok\": true,\n      \"detail\": \"fixed sidebar width\"\n    },\n    \"sidebar_toggle_hidden\": {\n      \"ok\": true,\n      \"detail\": \"sidebar toggle suppressed\"\n    },\n    \"visible_signout\": {\n      \"ok\": true,\n      \"detail\": \"sign-out component exists\"\n    },\n    \"role_header\": {\n      \"ok\": true,\n      \"detail\": \"role-aware global header\"\n    },\n    \"global_page_error_boundary\": {\n      \"ok\": true,\n      \"detail\": \"global error handling\"\n    },\n    \"global_spinner\": {\n      \"ok\": true,\n      \"detail\": \"global loading state\"\n    },\n    \"production_module\": {\n      \"ok\": true,\n      \"detail\": \"production module\"\n    },\n    \"xsrf_enabled\": {\n      \"ok\": true,\n      \"detail\": \"Streamlit XSRF\"\n    },\n    \"cors_disabled\": {\n      \"ok\": true,\n      \"detail\": \"CORS disabled\"\n    },\n    \"legacy_files_removed\": {\n      \"ok\": true,\n      \"detail\": \"legacy Files workflow removed\"\n    },\n    \"legacy_management_removed\": {\n      \"ok\": true,\n      \"detail\": \"legacy Management workflow removed\"\n    },\n    \"embedded_copy_synced\": {\n      \"ok\": true,\n      \"detail\": \"embedded main synced\"\n    },\n    \"explicit_role_navigation\": {\n      \"ok\": true,\n      \"detail\": \"18 explicit roles\"\n    }\n  },\n  \"errors\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "scripts/audit_coverage_check.py",
+      "rc": 0,
+      "stdout": "{\n  \"required_events\": 13,\n  \"missing\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "scripts/final_role_page_audit.py",
+      "rc": 0,
+      "stdout": "{\n  \"roles\": [\n    \"Admin\",\n    \"CRB Member\",\n    \"Chief Plan Appraiser\",\n    \"Industrial Surveyor\",\n    \"Job Coordinator\",\n    \"Lead Auditor\",\n    \"Management\",\n    \"On Probation\",\n    \"Plan Appraiser\",\n    \"Principal Surveyor\",\n    \"QMR\",\n    \"QMS Auditor\",\n    \"Rule Development Rep\",\n    \"Surveyor\",\n    \"Technical Manager\",\n    \"Trainee\",\n    \"Trainer\",\n    \"Tutor/Mentor\"\n  ],\n  \"role_count\": 18,\n  \"route_count\": 255,\n  \"duplicate_labels_within_role\": {},\n  \"unmapped_targets\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "tests/migration_check.py",
+      "rc": 0,
+      "stdout": "{'migration_check': 'passed', 'versions': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "tests/rls_policy_check.py",
+      "rc": 0,
+      "stdout": "{'rls_policy_check': 'passed', 'required_objects': 8}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 1,
+      "command": "-m pytest -q",
+      "rc": 0,
+      "stdout": "...............................................                          [100%]\n47 passed in 0.10s\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "scripts/final_gap_audit.py",
+      "rc": 0,
+      "stdout": "{\n  \"checks\": {\n    \"01_rls_all_tables\": {\n      \"status\": \"PASS\",\n      \"detail\": \"67 schema tables; 0 missing RLS enable\"\n    },\n    \"02_client_privileges_denied\": {\n      \"status\": \"PASS\",\n      \"detail\": \"0 tables without explicit client revoke\"\n    },\n    \"03_record_authorization_boundary\": {\n      \"status\": \"PASS\",\n      \"detail\": \"single mutation authorization API\"\n    },\n    \"04_no_page_write_sql_bypass\": {\n      \"status\": \"PASS\",\n      \"detail\": \"all page writes go through guarded db_* helpers\"\n    },\n    \"05_internal_mutation_context\": {\n      \"status\": \"PASS\",\n      \"detail\": \"system writes require explicit context\"\n    },\n    \"06_scope_contract_explicit\": {\n      \"status\": \"PASS\",\n      \"detail\": \"role/module scopes declared\"\n    },\n    \"07_crb_case_scope\": {\n      \"status\": \"PASS\",\n      \"detail\": \"CRB uses explicit case-assignee scope\"\n    },\n    \"08_qr_logging_ratelimit\": {\n      \"status\": \"PASS\",\n      \"detail\": \"public verification telemetry and throttling\"\n    },\n    \"09_rbac_centralized\": {\n      \"status\": \"PASS\",\n      \"detail\": \"central authorization layer\"\n    },\n    \"10_common_facade\": {\n      \"status\": \"PASS\",\n      \"detail\": \"common.py is 7 lines\"\n    },\n    \"11_no_page_ddl\": {\n      \"status\": \"PASS\",\n      \"detail\": \"no page-level schema creation\"\n    },\n    \"12_no_active_sessions_dict\": {\n      \"status\": \"PASS\",\n      \"detail\": \"sessions are DB-backed\"\n    },\n    \"13_audit_coverage\": {\n      \"status\": \"PASS\",\n      \"detail\": \"machine-auditable audit registry/checker present\"\n    },\n    \"14_backup_gate\": {\n      \"status\": \"PASS\",\n      \"detail\": \"backup/restore release gate documented\"\n    },\n    \"15_scheduler_health\": {\n      \"status\": \"PASS\",\n      \"detail\": \"retry/backoff telemetry\"\n    },\n    \"16_kpi_governance\": {\n      \"status\": \"PASS\",\n      \"detail\": \"KPI definitions versioned with business approval metadata\"\n    },\n    \"17_public_verify_service\": {\n      \"status\": \"PASS\",\n      \"detail\": \"isolated public verification service artifacts present\"\n    },\n    \"EXTERNAL_1_SUPABASE_JWT_RLS\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_2_RENDER_MULTII_INSTANCE\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_3_BROWSER_REGRESSION\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_4_LOAD_TEST\": \"REQUIRES_STAGING_EXECUTION\",\n    \"EXTERNAL_5_REAL_BACKUP_RESTORE\": \"REQUIRES_STAGING_EXECUTION\"\n  },\n  \"failed_static_checks\": [],\n  \"overall_static_status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "scripts/phase4_static_check.py",
+      "rc": 0,
+      "stdout": "{\n  \"checks\": {\n    \"global_design_system\": {\n      \"ok\": true,\n      \"detail\": \"shared UX tokens/components\"\n    },\n    \"fixed_sidebar\": {\n      \"ok\": true,\n      \"detail\": \"fixed sidebar width\"\n    },\n    \"sidebar_toggle_hidden\": {\n      \"ok\": true,\n      \"detail\": \"sidebar toggle suppressed\"\n    },\n    \"visible_signout\": {\n      \"ok\": true,\n      \"detail\": \"sign-out component exists\"\n    },\n    \"role_header\": {\n      \"ok\": true,\n      \"detail\": \"role-aware global header\"\n    },\n    \"global_page_error_boundary\": {\n      \"ok\": true,\n      \"detail\": \"global error handling\"\n    },\n    \"global_spinner\": {\n      \"ok\": true,\n      \"detail\": \"global loading state\"\n    },\n    \"production_module\": {\n      \"ok\": true,\n      \"detail\": \"production module\"\n    },\n    \"xsrf_enabled\": {\n      \"ok\": true,\n      \"detail\": \"Streamlit XSRF\"\n    },\n    \"cors_disabled\": {\n      \"ok\": true,\n      \"detail\": \"CORS disabled\"\n    },\n    \"legacy_files_removed\": {\n      \"ok\": true,\n      \"detail\": \"legacy Files workflow removed\"\n    },\n    \"legacy_management_removed\": {\n      \"ok\": true,\n      \"detail\": \"legacy Management workflow removed\"\n    },\n    \"embedded_copy_synced\": {\n      \"ok\": true,\n      \"detail\": \"embedded main synced\"\n    },\n    \"explicit_role_navigation\": {\n      \"ok\": true,\n      \"detail\": \"18 explicit roles\"\n    }\n  },\n  \"errors\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "scripts/audit_coverage_check.py",
+      "rc": 0,
+      "stdout": "{\n  \"required_events\": 13,\n  \"missing\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "scripts/final_role_page_audit.py",
+      "rc": 0,
+      "stdout": "{\n  \"roles\": [\n    \"Admin\",\n    \"CRB Member\",\n    \"Chief Plan Appraiser\",\n    \"Industrial Surveyor\",\n    \"Job Coordinator\",\n    \"Lead Auditor\",\n    \"Management\",\n    \"On Probation\",\n    \"Plan Appraiser\",\n    \"Principal Surveyor\",\n    \"QMR\",\n    \"QMS Auditor\",\n    \"Rule Development Rep\",\n    \"Surveyor\",\n    \"Technical Manager\",\n    \"Trainee\",\n    \"Trainer\",\n    \"Tutor/Mentor\"\n  ],\n  \"role_count\": 18,\n  \"route_count\": 255,\n  \"duplicate_labels_within_role\": {},\n  \"unmapped_targets\": [],\n  \"status\": \"PASS\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "tests/migration_check.py",
+      "rc": 0,
+      "stdout": "{'migration_check': 'passed', 'versions': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "tests/rls_policy_check.py",
+      "rc": 0,
+      "stdout": "{'rls_policy_check': 'passed', 'required_objects': 8}\n",
+      "stderr": ""
+    },
+    {
+      "iteration": 2,
+      "command": "-m pytest -q",
+      "rc": 0,
+      "stdout": "...............................................                          [100%]\n47 passed in 0.10s\n",
+      "stderr": ""
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "phase": "gap-closure-17",
+  "role_navigation": "explicit",
+  "central_scope_policy": true,
+  "modular_bootstrap_lines": 55,
+  "legacy_technical_pages_in_app": false,
+  "migration_framework": true,
+  "audit_immutability_migration": true,
+  "kpi_definitions": true,
+  "scheduler_monitoring": true,
+  "public_verify_service": true,
+  "live_tests_harnessed": true
+}

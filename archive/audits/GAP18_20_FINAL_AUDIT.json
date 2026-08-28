@@ -1,0 +1,12 @@
+{
+  "gaps": "18-20",
+  "status": "PASS_SOURCE_AND_LOCAL",
+  "gap18": "certificate history lineage and history view",
+  "gap19": "technical discipline scope and assignment field",
+  "gap20": "single source role classification",
+  "root_tests": "87/87",
+  "schema_tables": 72,
+  "migrations": "001-034",
+  "production_gate": "PASS",
+  "staging_external": "REQUIRES_STAGING_EXECUTION"
+}

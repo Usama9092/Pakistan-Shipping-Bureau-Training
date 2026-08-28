@@ -1,0 +1,9 @@
+{
+  "roles": 18,
+  "all_roles_have_explicit_navigation": true,
+  "legacy_technical_functions_removed": true,
+  "central_rbac_present": true,
+  "hardcoded_role_gate_patterns": 0,
+  "public_qr_available": true,
+  "tests_passed": 16
+}

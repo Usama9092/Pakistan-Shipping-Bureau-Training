@@ -1,0 +1,93 @@
+{
+  "release": "ROLE-EXPERIENCE-BEASTMODE-FINAL",
+  "tests": "......................................................................   [100%]",
+  "role_gap_loop": {
+    "checks": {
+      "1_on_probation_my_performance": true,
+      "2_tutor_probation_scope": true,
+      "3_crb_exact_case_evidence": true,
+      "4_trainer_assigned_workspace": true,
+      "5_tutor_assigned_profile": true,
+      "6_plan_appraiser_my_auth": true,
+      "7_audit_workspace": true,
+      "8_management_review": true,
+      "9_certificate_revoked": true,
+      "10_certificate_mutually_exclusive": true,
+      "11_my_technical_reviews": true,
+      "12_explicit_view_context": true,
+      "13_maker_checker_test": true,
+      "14_audit_test": true,
+      "15_supabase_staging_harness": true,
+      "16_render_multinstance_harness": true,
+      "17_browser_load_restore_harness": true
+    },
+    "passed": 17,
+    "total": 17,
+    "status": "PASS"
+  },
+  "role_page_audit": {
+    "roles": [
+      "Admin",
+      "CRB Member",
+      "Chief Plan Appraiser",
+      "Industrial Surveyor",
+      "Job Coordinator",
+      "Lead Auditor",
+      "Management",
+      "On Probation",
+      "Plan Appraiser",
+      "Principal Surveyor",
+      "QMR",
+      "QMS Auditor",
+      "Rule Development Rep",
+      "Surveyor",
+      "Technical Manager",
+      "Trainee",
+      "Trainer",
+      "Tutor/Mentor"
+    ],
+    "role_count": 18,
+    "route_count": 277,
+    "duplicate_labels_within_role": {},
+    "unmapped_targets": [],
+    "status": "PASS"
+  },
+  "schema_contract": {
+    "referenced_count": 66,
+    "schema_count": 69,
+    "missing_tables": [],
+    "unused_schema_tables": [],
+    "contract_ok": true
+  },
+  "rls_static": {
+    "schema_tables": 69,
+    "rls_enabled_tables": 69,
+    "policy_count": 149,
+    "schema_tables_without_rls_enable": [],
+    "note": "Static posture check only. This template intentionally does not invent JWT business policies because Supabase Auth user-to-PSB-user mapping must be defined and tested in the target project. Existing server-side service-role access bypasses RLS.  Production RLS must be integration-tested with authenticated Supabase JWT roles."
+  },
+  "audit_coverage": {
+    "required_events": 13,
+    "missing": [],
+    "status": "PASS"
+  },
+  "production_gate": "PASS",
+  "external_staging_gates": {
+    "Supabase JWT/RLS": "REQUIRES_STAGING_EXECUTION",
+    "Render multi-instance": "REQUIRES_STAGING_EXECUTION",
+    "Browser regression": "REQUIRES_STAGING_EXECUTION",
+    "Realistic load": "REQUIRES_STAGING_EXECUTION",
+    "Backup/restore": "REQUIRES_STAGING_EXECUTION"
+  },
+  "release_hygiene": {
+    "status": "PASS",
+    "authoritative_baseline": {
+      "roles": 18,
+      "routes": 277,
+      "schema_tables": 69,
+      "migrations": "001-029"
+    },
+    "historical_reports_archived": true,
+    "stale_active_count_scan": "PASS"
+  }
+}

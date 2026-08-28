@@ -1,0 +1,21 @@
+{
+  "roles": 18,
+  "role_navigation_explicit": true,
+  "legacy_technical_pages_active": false,
+  "legacy_role_gate_patterns_active": false,
+  "temp_password_persistent": false,
+  "schema_contract": "passed",
+  "migrations": "1-15 contiguous",
+  "rls_policy_static_check": "passed",
+  "audit_immutability": "database trigger present",
+  "public_qr_service": true,
+  "scheduler_retry": true,
+  "kpi_governance": true,
+  "backup_restore_test_tracking": true,
+  "modular_entrypoint": "app.py -> psb_app.main",
+  "environment_dependent_checks": [
+    "Supabase JWT/RLS live regression",
+    "Render multi-instance browser test",
+    "realistic load test"
+  ]
+}

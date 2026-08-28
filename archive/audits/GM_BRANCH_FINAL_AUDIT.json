@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "gm_role": "GM",
+  "roles": 19,
+  "routes": 288,
+  "gm_sidebar_primary_destinations": 10,
+  "schema_tables": 73,
+  "rls_enabled": 73,
+  "client_revokes": 73,
+  "migrations": "001-035",
+  "root_tests": "100/100 PASS",
+  "embedded_tests": "100/100 PASS",
+  "production_gate": "PASS",
+  "gm_features": [
+    "Executive Command Center",
+    "Global Search",
+    "Requires GM Attention",
+    "Executive Risk Pulse",
+    "Decision Inbox",
+    "Personal Watchlist",
+    "People workspace",
+    "Capability workspace",
+    "Governance workspace",
+    "Quality workspace",
+    "Operations workspace",
+    "Administration workspace",
+    "Reports center",
+    "Notifications",
+    "My Profile"
+  ],
+  "approval_boundary": "GM has administration authority and organization-wide visibility; no implicit technical/CRB/QMS/competency approval grants",
+  "external_staging_required": [
+    "Supabase JWT/RLS behavioral verification",
+    "Render multi-instance continuity",
+    "browser regression",
+    "realistic load",
+    "real backup/restore"
+  ]
+}

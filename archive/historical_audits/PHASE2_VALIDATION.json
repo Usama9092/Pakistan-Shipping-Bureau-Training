@@ -1,0 +1,38 @@
+{
+  "phase": "2",
+  "validation": {
+    "python_compile": true,
+    "unit_tests": "3 passed",
+    "schema_contract": {
+      "referenced_count": 61,
+      "schema_count": 63,
+      "missing_tables": [],
+      "unused_schema_tables": [
+        "document_versions",
+        "field_exposure_matrix"
+      ],
+      "contract_ok": true
+    },
+    "rls_static": {
+      "schema_tables": 63,
+      "rls_enabled_tables": 63,
+      "policy_count": 0,
+      "schema_tables_without_rls_enable": [],
+      "note": "Static posture check only. This template intentionally does not invent JWT business policies because Supabase Auth user-to-PSB-user mapping must be defined and tested in the target project. Existing server-side service-role access bypasses RLS.  Production RLS must be integration-tested with authenticated Supabase JWT roles."
+    },
+    "legacy_files_page_removed": true,
+    "legacy_management_page_removed": true,
+    "core_service_layer": [
+      "core/__init__.py",
+      "core/authorization.py",
+      "core/health.py",
+      "core/observability.py",
+      "core/schema_contract.py"
+    ]
+  },
+  "external_verification_required": [
+    "Supabase JWT/RLS staging tests",
+    "production-like load test",
+    "browser end-to-end test"
+  ]
+}

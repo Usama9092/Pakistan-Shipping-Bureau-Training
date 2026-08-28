@@ -1,0 +1,14 @@
+{
+  "release": "PSB Master \u2014 Gaps 18\u201320",
+  "gaps": [
+    18,
+    19,
+    20
+  ],
+  "root_tests": "87/87",
+  "embedded_tests": "87/87",
+  "migrations": "001-034",
+  "schema_tables": 72,
+  "rls_policy": "all schema tables enabled/revoked in production posture",
+  "status": "PASS_SOURCE_AND_LOCAL"
+}

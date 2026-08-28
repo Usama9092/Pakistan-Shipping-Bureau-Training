@@ -1,0 +1,19 @@
+{
+  "gap": 2,
+  "title": "RLS / Application Scope Alignment",
+  "status": "CLOSED_SOURCE_LEVEL",
+  "checks": {
+    "tests": "72/72 passed",
+    "schema_tables": 69,
+    "rls_enabled": 69,
+    "client_privilege_revoked": 69,
+    "production_authenticated_select_policies": 0,
+    "scope_policy_externalized": true,
+    "repository_server_boundary": true,
+    "crb_case_scope_present": true,
+    "trainer_tutor_assigned_scope": true
+  },
+  "staging_required": [
+    "Supabase JWT/RLS behavioral execution against real staging project"
+  ]
+}

@@ -18,7 +18,11 @@ from psb_app.legacy_runtime import (
 )
 
 def _admin_only(actor: dict) -> bool:
-    if not can_action(actor, 'Administration', 'Manage', 'Organization-wide'):
+    # The canonical administrator role must never depend on an optional
+    # permission-matrix row to enter the Administration workspace.  The
+    # matrix remains authoritative for delegated/non-admin access.
+    role = str(actor_get(actor, 'role', '') or '').strip().lower()
+    if role not in {'admin', 'administrator'} and not can_action(actor, 'Administration', 'Manage', 'Organization-wide'):
         st.error('Administrator access is required for this page.')
         return False
     return True
@@ -74,4 +78,3 @@ def _build_backup_payload(backup_type: str, tables: list[str]):
             for t in tables:
                 _sanitize_backup_frame(db_all(t), t).to_excel(writer, sheet_name=t[:31], index=False)
         return (buf.getvalue(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f"psb_application_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
-

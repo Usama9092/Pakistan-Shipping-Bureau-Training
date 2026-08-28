@@ -11,6 +11,7 @@ DATABASE_URL = os.getenv('DATABASE_URL','')
 DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE','5'))
 DB_MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW','10'))
 DB_STATEMENT_TIMEOUT_MS = int(os.getenv('DB_STATEMENT_TIMEOUT_MS','15000'))
+DB_POOL_PRE_PING = os.getenv('DB_POOL_PRE_PING', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
 
 @st.cache_resource
 def get_engine():
@@ -20,8 +21,8 @@ def get_engine():
     elif url.startswith('postgresql://'):
         url = url.replace('postgresql://','postgresql+psycopg2://',1)
     if url.startswith('sqlite'):
-        return create_engine(url, pool_pre_ping=True, connect_args={'check_same_thread':False})
-    return create_engine(url, pool_pre_ping=True, pool_size=DB_POOL_SIZE, max_overflow=DB_MAX_OVERFLOW, pool_recycle=1800, pool_timeout=15, connect_args={'options': f'-c statement_timeout={DB_STATEMENT_TIMEOUT_MS}'})
+        return create_engine(url, pool_pre_ping=DB_POOL_PRE_PING, connect_args={'check_same_thread':False})
+    return create_engine(url, pool_pre_ping=DB_POOL_PRE_PING, pool_size=DB_POOL_SIZE, max_overflow=DB_MAX_OVERFLOW, pool_recycle=300, pool_timeout=15, connect_args={'options': f'-c statement_timeout={DB_STATEMENT_TIMEOUT_MS}'})
 
 def exec_sql(sql: str, params: dict | None = None) -> None:
     with get_engine().begin() as conn:

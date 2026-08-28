@@ -1,0 +1,27 @@
+{
+  "roles": [
+    "Admin",
+    "CRB Member",
+    "Chief Plan Appraiser",
+    "Industrial Surveyor",
+    "Job Coordinator",
+    "Lead Auditor",
+    "Management",
+    "On Probation",
+    "Plan Appraiser",
+    "Principal Surveyor",
+    "QMR",
+    "QMS Auditor",
+    "Rule Development Rep",
+    "Surveyor",
+    "Technical Manager",
+    "Trainee",
+    "Trainer",
+    "Tutor/Mentor"
+  ],
+  "role_count": 18,
+  "route_count": 277,
+  "duplicate_labels_within_role": {},
+  "unmapped_targets": [],
+  "status": "PASS"
+}

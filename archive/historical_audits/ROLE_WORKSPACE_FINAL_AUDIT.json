@@ -1,0 +1,118 @@
+{
+  "roles": [
+    "Admin",
+    "Trainer",
+    "Tutor/Mentor",
+    "Surveyor",
+    "Plan Appraiser",
+    "QMS Auditor",
+    "Industrial Surveyor",
+    "Rule Development Rep",
+    "Principal Surveyor",
+    "Chief Plan Appraiser",
+    "Lead Auditor",
+    "Technical Manager",
+    "QMR",
+    "CRB Member",
+    "Job Coordinator",
+    "Management",
+    "Trainee",
+    "On Probation"
+  ],
+  "role_count": 18,
+  "required_workspaces": {
+    "Certificate Center / My Certificates": [
+      "Admin",
+      "Management",
+      "Technical Manager",
+      "Principal Surveyor",
+      "Chief Plan Appraiser",
+      "Surveyor",
+      "Industrial Surveyor",
+      "Plan Appraiser",
+      "Trainee",
+      "On Probation"
+    ],
+    "My Technical Reviews": [
+      "Surveyor",
+      "Industrial Surveyor",
+      "Plan Appraiser",
+      "Principal Surveyor",
+      "Chief Plan Appraiser"
+    ],
+    "My Audits": [
+      "QMS Auditor",
+      "Lead Auditor"
+    ],
+    "CRB Case Workspace": [
+      "CRB Member"
+    ],
+    "Management Review Dashboard": [
+      "QMR",
+      "Management"
+    ],
+    "Probation Review": [
+      "On Probation",
+      "Tutor/Mentor",
+      "Admin",
+      "Management"
+    ]
+  },
+  "Certificate Center / My Certificates": {
+    "Admin": true,
+    "Management": true,
+    "Technical Manager": true,
+    "Principal Surveyor": true,
+    "Chief Plan Appraiser": true,
+    "Surveyor": true,
+    "Industrial Surveyor": true,
+    "Plan Appraiser": true,
+    "Trainee": true,
+    "On Probation": true
+  },
+  "My Technical Reviews": {
+    "Surveyor": true,
+    "Industrial Surveyor": true,
+    "Plan Appraiser": true,
+    "Principal Surveyor": true,
+    "Chief Plan Appraiser": true
+  },
+  "My Audits": {
+    "QMS Auditor": true,
+    "Lead Auditor": true
+  },
+  "CRB Case Workspace": {
+    "CRB Member": true
+  },
+  "Management Review Dashboard": {
+    "QMR": true,
+    "Management": true
+  },
+  "Probation Review": {
+    "On Probation": true,
+    "Tutor/Mentor": true,
+    "Admin": true,
+    "Management": true
+  },
+  "duplicates": {
+    "Admin": 0,
+    "Trainer": 0,
+    "Tutor/Mentor": 0,
+    "Surveyor": 0,
+    "Plan Appraiser": 0,
+    "QMS Auditor": 0,
+    "Industrial Surveyor": 0,
+    "Rule Development Rep": 0,
+    "Principal Surveyor": 0,
+    "Chief Plan Appraiser": 0,
+    "Lead Auditor": 0,
+    "Technical Manager": 0,
+    "QMR": 0,
+    "CRB Member": 0,
+    "Job Coordinator": 0,
+    "Management": 0,
+    "Trainee": 0,
+    "On Probation": 0
+  },
+  "routes_present": true
+}

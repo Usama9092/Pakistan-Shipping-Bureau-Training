@@ -1,0 +1,10 @@
+{
+  "python_compile": true,
+  "runtime_schema_missing": [],
+  "fixed_demo_credentials_present": false,
+  "legacy_files_page_present": false,
+  "legacy_management_page_present": false,
+  "central_permission_function_present": true,
+  "argon2_present": true,
+  "forced_password_change_present": true
+}

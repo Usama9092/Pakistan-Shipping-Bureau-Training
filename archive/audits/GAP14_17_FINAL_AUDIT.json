@@ -1,0 +1,13 @@
+{
+  "release": "Gaps 14-17 Closed",
+  "root_tests": 83,
+  "embedded_tests": 83,
+  "rls_tables": 71,
+  "client_privilege_revokes": 71,
+  "migrations": "001-031",
+  "production_gate": "PASS",
+  "gap14_audit_integration": "PASS",
+  "gap15_supabase_jwt_rls": "STAGING_REQUIRED",
+  "gap16_render_multi_instance": "STAGING_REQUIRED",
+  "gap17_browser_load_backup_restore": "HARNESS_PASS_STAGING_REQUIRED"
+}

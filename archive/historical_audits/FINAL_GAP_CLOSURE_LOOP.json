@@ -1,0 +1,108 @@
+{
+  "final_gap_audit": {
+    "checks": {
+      "01_rls_all_tables": {
+        "status": "PASS",
+        "detail": "67 schema tables; 0 missing RLS enable"
+      },
+      "02_client_privileges_denied": {
+        "status": "PASS",
+        "detail": "0 tables without explicit client revoke"
+      },
+      "03_record_authorization_boundary": {
+        "status": "PASS",
+        "detail": "single mutation authorization API"
+      },
+      "04_no_page_write_sql_bypass": {
+        "status": "PASS",
+        "detail": "all page writes go through guarded db_* helpers"
+      },
+      "05_internal_mutation_context": {
+        "status": "PASS",
+        "detail": "system writes require explicit context"
+      },
+      "06_scope_contract_explicit": {
+        "status": "PASS",
+        "detail": "role/module scopes declared"
+      },
+      "07_crb_case_scope": {
+        "status": "PASS",
+        "detail": "CRB uses explicit case-assignee scope"
+      },
+      "08_qr_logging_ratelimit": {
+        "status": "PASS",
+        "detail": "public verification telemetry and throttling"
+      },
+      "09_rbac_centralized": {
+        "status": "PASS",
+        "detail": "central authorization layer"
+      },
+      "10_common_facade": {
+        "status": "PASS",
+        "detail": "common.py is 7 lines"
+      },
+      "11_no_page_ddl": {
+        "status": "PASS",
+        "detail": "no page-level schema creation"
+      },
+      "12_no_active_sessions_dict": {
+        "status": "PASS",
+        "detail": "sessions are DB-backed"
+      },
+      "13_audit_coverage": {
+        "status": "PASS",
+        "detail": "machine-auditable audit registry/checker present"
+      },
+      "14_backup_gate": {
+        "status": "PASS",
+        "detail": "backup/restore release gate documented"
+      },
+      "15_scheduler_health": {
+        "status": "PASS",
+        "detail": "retry/backoff telemetry"
+      },
+      "16_kpi_governance": {
+        "status": "PASS",
+        "detail": "KPI definitions versioned with business approval metadata"
+      },
+      "17_public_verify_service": {
+        "status": "PASS",
+        "detail": "isolated public verification service artifacts present"
+      },
+      "EXTERNAL_1_SUPABASE_JWT_RLS": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_2_RENDER_MULTII_INSTANCE": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_3_BROWSER_REGRESSION": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_4_LOAD_TEST": "REQUIRES_STAGING_EXECUTION",
+      "EXTERNAL_5_REAL_BACKUP_RESTORE": "REQUIRES_STAGING_EXECUTION"
+    },
+    "failed_static_checks": [],
+    "overall_static_status": "PASS"
+  },
+  "final_role_page_audit": {
+    "roles": [
+      "Admin",
+      "CRB Member",
+      "Chief Plan Appraiser",
+      "Industrial Surveyor",
+      "Job Coordinator",
+      "Lead Auditor",
+      "Management",
+      "On Probation",
+      "Plan Appraiser",
+      "Principal Surveyor",
+      "QMR",
+      "QMS Auditor",
+      "Rule Development Rep",
+      "Surveyor",
+      "Technical Manager",
+      "Trainee",
+      "Trainer",
+      "Tutor/Mentor"
+    ],
+    "role_count": 18,
+    "route_count": 255,
+    "duplicate_labels_within_role": {},
+    "unmapped_targets": [],
+    "status": "PASS"
+  }
+}

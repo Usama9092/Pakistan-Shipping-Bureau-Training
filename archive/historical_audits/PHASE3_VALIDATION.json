@@ -1,0 +1,37 @@
+{
+  "phase": "3",
+  "master_baseline": "MASTER-PHASE2-HARDENED",
+  "python_compile": {
+    "app.py": true,
+    "psb_extracted/app.py": true
+  },
+  "pytest": {
+    "tests_total": 11,
+    "passed": 11
+  },
+  "schema_contract": {
+    "referenced_tables": 62,
+    "schema_tables": 64,
+    "missing_tables": [],
+    "contract_ok": true,
+    "unused_schema_tables": [
+      "document_versions",
+      "field_exposure_matrix"
+    ]
+  },
+  "security": {
+    "supabase_auth_adapter": true,
+    "auth_user_id_mapping": true,
+    "argon2_local_auth": true,
+    "db_backed_hashed_sessions": true,
+    "force_password_change_enforced": true,
+    "repository_identifier_validation": true,
+    "rls_template_identity_mapping": true,
+    "service_role_client_side_exposure": false
+  },
+  "not_run": [
+    "Actual Supabase JWT/RLS staging integration because no live project credentials were provided",
+    "Production load test because the deployment runtime is not available in this environment",
+    "Streamlit runtime import smoke test because Streamlit is not installed in this execution environment"
+  ]
+}

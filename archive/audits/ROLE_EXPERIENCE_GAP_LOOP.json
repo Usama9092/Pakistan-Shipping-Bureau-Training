@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "1_on_probation_my_performance": true,
+    "2_tutor_probation_scope": true,
+    "3_crb_exact_case_evidence": true,
+    "4_trainer_assigned_workspace": true,
+    "5_tutor_assigned_profile": true,
+    "6_plan_appraiser_my_auth": true,
+    "7_audit_workspace": true,
+    "8_management_review": true,
+    "9_certificate_revoked": true,
+    "10_certificate_mutually_exclusive": true,
+    "11_my_technical_reviews": true,
+    "12_explicit_view_context": true,
+    "13_maker_checker_test": true,
+    "14_audit_test": true,
+    "15_supabase_staging_harness": true,
+    "16_render_multinstance_harness": true,
+    "17_browser_load_restore_harness": true
+  },
+  "passed": 17,
+  "total": 17,
+  "status": "PASS"
+}

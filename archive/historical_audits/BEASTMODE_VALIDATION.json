@@ -1,0 +1,46 @@
+{
+  "release": "PHASE6-BEASTMODE-FINAL",
+  "tests": {
+    "pytest_passed": 30,
+    "architecture_gap_guard": "passed",
+    "migration_check": "passed",
+    "rls_policy_check": "passed",
+    "python_compile": "passed"
+  },
+  "schema": {
+    "runtime_referenced_tables": 64,
+    "schema_tables": 67,
+    "missing_tables": [],
+    "contract_ok": true
+  },
+  "migrations": {
+    "first": 1,
+    "last": 22,
+    "contiguous": true
+  },
+  "controls": {
+    "role_navigation": "closed",
+    "central_rbac": "closed",
+    "record_scope_reads": "closed",
+    "record_scope_writes": "closed",
+    "legacy_technical_pages": "removed",
+    "qr_logging_rate_limit": "closed",
+    "audit_immutability": "closed",
+    "postgres_schema_migrations_only": "closed",
+    "repository_gateway": "closed",
+    "rbac_record_scope": "closed",
+    "read_scope": "closed",
+    "qr_public_rate_limit_logging": "closed",
+    "crb_case_assignment_scope": "closed",
+    "repository_reads_and_writes": "closed",
+    "scheduler_retry_recording": "closed",
+    "notification_queue_retry_metadata": "closed"
+  },
+  "live_environment": {
+    "supabase_jwt_rls": "requires_staging_execution",
+    "render_multi_instance": "requires_staging_execution",
+    "browser_regression": "requires_staging_execution",
+    "load_test": "requires_staging_execution",
+    "cloud_restore_test": "requires_staging_execution"
+  }
+}
