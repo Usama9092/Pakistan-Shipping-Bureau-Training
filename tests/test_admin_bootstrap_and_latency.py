@@ -32,3 +32,12 @@ def test_forced_change_reuses_the_authenticated_login_session():
     assert "row.empty" not in section
     assert "actor_get(st.session_state.get('user'" not in section
     assert "Confirm new password" in section
+
+
+def test_login_security_writes_are_trusted_internal_mutations():
+    runtime = (ROOT / 'psb_app/legacy_runtime.py').read_text(encoding='utf-8')
+    auth = (ROOT / 'psb_app/pages/auth_ui.py').read_text(encoding='utf-8')
+    assert "'login_security_state'" in runtime.split('_SERVER_INTERNAL_TABLES', 1)[1].split('}', 1)[0]
+    assert "system_write('login_security_failure')" in auth
+    assert "system_write('login_security_clear')" in auth
+
