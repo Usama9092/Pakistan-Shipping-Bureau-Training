@@ -32,6 +32,7 @@ def test_forced_change_reuses_the_authenticated_login_session():
     assert "row.empty" not in section
     assert "actor_get(st.session_state.get('user'" not in section
     assert "Confirm new password" in section
+    assert "system_write('authenticated_self_password_change')" in section
 
 
 def test_login_security_writes_are_trusted_internal_mutations():
