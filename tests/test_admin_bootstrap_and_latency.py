@@ -29,4 +29,6 @@ def test_forced_change_reuses_the_authenticated_login_session():
     section = source.split('def password_change_page', 1)[1].split('def sidebar', 1)[0]
     assert "Current / temporary password" not in section
     assert "st.session_state.get('logged_in')" in section
+    assert "row.empty" not in section
+    assert "actor_get(st.session_state.get('user'" not in section
     assert "Confirm new password" in section

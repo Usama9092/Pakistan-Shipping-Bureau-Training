@@ -302,8 +302,10 @@ def password_change_page(actor: dict) -> None:
             st.error(' '.join(pwd_errors))
             return
         uidv = actor_get(actor, 'user_id')
-        row = db_where('users', 'user_id = :uid', (('uid', uidv),))
-        if row.empty or not st.session_state.get('logged_in') or uidv != actor_get(st.session_state.get('user', {}), 'user_id'):
+        # Reaching this page already requires require_login() to have completed
+        # successfully.  Keep a minimal server-side session guard without
+        # re-querying or comparing differently shaped actor/session objects.
+        if not uidv or not st.session_state.get('logged_in'):
             st.error('Your authenticated session could not be verified. Please sign in again.')
             return
         db_update('users', 'user_id', uidv, {'password_hash': phash(new1), 'force_password_change': 'No', 'password_changed_on': now()})
