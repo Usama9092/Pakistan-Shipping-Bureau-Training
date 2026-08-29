@@ -334,9 +334,14 @@ def _mutation_guard(table: str, action: str, row: dict | None) -> None:
     internal system writes require an explicit system_write context. Startup before
     a user session exists remains permitted for migrations/bootstrap only.
     """
+    # Explicit trusted-service contexts are the only supported way for
+    # authentication and other server-owned workflows to update a business
+    # table without borrowing the signed-in user's module permissions.
+    if is_system_write():
+        return
     actor = st.session_state.get('user') if hasattr(st, 'session_state') else None
     if table in _SERVER_INTERNAL_TABLES:
-        if is_system_write() or not isinstance(actor, dict) or not actor.get('user_id'):
+        if not isinstance(actor, dict) or not actor.get('user_id'):
             return
         raise PermissionError(f'Internal table {table} can only be modified by a trusted system service.')
     if not isinstance(actor, dict) or not actor.get('user_id'):
