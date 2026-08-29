@@ -362,6 +362,11 @@ def db_insert(table: str, row: dict) -> None:
     _mutation_guard(table, 'Create', row)
     REPOSITORY.insert(table, row)
 
+def db_insert_many(table: str, rows: list[dict]) -> None:
+    for row in rows:
+        _mutation_guard(table, 'Create', row)
+    REPOSITORY.insert_many(table, rows)
+
 def db_update(table: str, id_col: str, id_val: str, row: dict) -> None:
     existing = None
     try:
