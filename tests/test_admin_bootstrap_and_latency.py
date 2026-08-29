@@ -69,3 +69,11 @@ def test_repository_supports_single_transaction_bulk_insert():
     assert 'def insert_many(' in repository
     assert 'self.exec_sql(' in repository.split('def insert_many', 1)[1].split('def update', 1)[0]
 
+
+def test_role_permission_baseline_avoids_per_grant_database_queries():
+    runtime = (ROOT / 'psb_app/legacy_runtime.py').read_text(encoding='utf-8')
+    section = runtime.split('def _ensure_role_permission_baseline', 1)[1].split('# ---------------------------------------------------------------------------', 1)[0]
+    assert "existing_all = db_all('role_permissions')" in section
+    assert "db_where('role_permissions'" not in section
+    assert "db_insert_many('role_permissions', missing_rows)" in section
+
