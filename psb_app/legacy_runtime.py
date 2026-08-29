@@ -706,17 +706,24 @@ def _ensure_role_permission_baseline():
     perms = db_all('permissions')
     if perms.empty:
         return
+    existing_all = db_all('role_permissions')
+    existing_by_key = {}
+    if not existing_all.empty:
+        for _, row in existing_all.iterrows():
+            existing_by_key[(str(row.get('role_name')), str(row.get('permission_id')))] = row.to_dict()
+    missing_rows = []
     for role_name, grants in ROLE_PERMISSION_BASELINE.items():
         for module_name, action_name, scope_name in grants:
             match = perms[(perms['module_name'].astype(str) == module_name) & (perms['action'].astype(str) == action_name) & (perms['scope'].astype(str) == scope_name)]
             if match.empty:
                 continue
             pid = str(match.iloc[0]['permission_id'])
-            existing = db_where('role_permissions', 'role_name = :role and permission_id = :pid', (('role', role_name), ('pid', pid)))
-            if existing.empty:
-                db_insert('role_permissions', {'role_permission_id': uid('RPERM'), 'role_name': role_name, 'permission_id': pid, 'enabled': 'Yes', 'created_on': now(), 'updated_on': now()})
-            elif str(existing.iloc[0].get('enabled', 'Yes')) != 'Yes':
-                db_update('role_permissions', 'role_permission_id', existing.iloc[0]['role_permission_id'], {'enabled': 'Yes', 'updated_on': now()})
+            existing = existing_by_key.get((role_name, pid))
+            if existing is None:
+                missing_rows.append({'role_permission_id': uid('RPERM'), 'role_name': role_name, 'permission_id': pid, 'enabled': 'Yes', 'created_on': now(), 'updated_on': now()})
+            elif str(existing.get('enabled', 'Yes')) != 'Yes':
+                db_update('role_permissions', 'role_permission_id', existing['role_permission_id'], {'enabled': 'Yes', 'updated_on': now()})
+    db_insert_many('role_permissions', missing_rows)
 
 
 
