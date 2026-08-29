@@ -62,6 +62,9 @@ def test_master_seed_runs_when_an_admin_already_exists_and_batches_permissions()
     assert "if not db_all('users').empty:\n        return" not in section
     assert "db_insert_many('permissions', missing_permissions)" in section
     assert "db_insert_many('system_settings'" in section
+    init_section = service.split('def init_db', 1)[1].split('def ensure_indexes', 1)[0]
+    assert 'seed_demo()' in init_section
+    assert "if db_all('users').empty:\n        seed_demo()" not in init_section
 
 
 def test_repository_supports_single_transaction_bulk_insert():
