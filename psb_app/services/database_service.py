@@ -196,15 +196,9 @@ def init_db() -> None:
     else:
         # PostgreSQL schema changes are migration-only. No startup DDL is executed here.
         logging.getLogger('psb.migrations').info('postgres_schema_mode=migrations_only')
-    if db_all('users').empty:
-        seed_demo()
-    else:
-        # Permission baselines are additive and must also be applied to existing
-        # databases; demo seeding intentionally returns early once users exist.
-        try:
-            _runtime._ensure_role_permission_baseline()
-        except Exception:
-            logging.getLogger('psb.permissions').exception('role_permission_baseline_update_failed')
+    # The initializer is idempotent and must run for existing deployments too:
+    # an Admin account may predate roles, permissions and system settings.
+    seed_demo()
 def ensure_indexes() -> None:
     """Create common PostgreSQL/Supabase indexes used by dashboards and trainee pages."""
     for col, typ in [('activity_date', 'text'), ('description', 'text'), ('learning_outcome', 'text'), ('evidence_status', 'text'), ('verified_by', 'text'), ('verified_on', 'text'), ('verification_notes', 'text'), ('development_plan_id', 'text'), ('source_type', 'text')]:
@@ -326,11 +320,14 @@ def seed_demo() -> None:
                         baseline_rows.append({'role_permission_id': uid('RPERM'), 'role_name': role_name, 'permission_id': matches.iloc[0]['permission_id'], 'enabled': 'Yes', 'created_on': now(), 'updated_on': now()})
         db_insert_many('role_permissions', baseline_rows)
     _runtime._ensure_role_permission_baseline()
-    for module in CORE_THEORETICAL_MODULES:
-        db_insert('training_modules', {'module_id': module[0], 'title': module[1], 'module_group': module[3], 'target_path': module[2], 'mandatory': 'Yes', 'refresher_required': 'Yes', 'cpd_hours': module[4], 'validity_months': 36, 'added_by': 'System', 'created_on': today()})
-    for row in DEFAULT_AUTH_MATRIX:
-        db_insert('authorization_matrix', {'matrix_id': uid('MATRIX'), 'scope': row[0], 'job_type': row[1], 'required_witness_count': row[2], 'required_supervised_count': row[3], 'required_joint_plan_count': row[4], 'required_independent_plan_count': row[5], 'required_level_for_auth': f'Level {row[6]} - Authorized' if row[6] == 3 else f'Level {row[6]} - Senior Authorized', 'minimum_job_level': f'Level {row[7]} - Authorized' if row[7] == 3 else f'Level {row[7]} - Senior Authorized', 'risk_category': row[8], 'validity_months': row[9], 'active': 'Yes'})
-    for rule in [('RULE-IMO-RO', 'IMO Recognized Organization Code', 'IMO RO Code', 'Current', 'Statutory', 'https://www.imo.org'), ('RULE-ISO9001', 'Quality Management System Requirements', 'ISO 9001', '2015', 'QMS', 'https://www.iso.org'), ('RULE-ISO17020', 'Inspection Body Competence Requirements', 'ISO/IEC 17020', '2012', 'Inspection', 'https://www.iso.org'), ('RULE-IACS-PR7', 'IACS Training and Qualification Principles', 'IACS PR7', 'Current', 'Competency', 'https://iacs.org.uk')]:
-        db_insert('rule_library', {'rule_id': rule[0], 'title': rule[1], 'standard': rule[2], 'revision': rule[3], 'category': rule[4], 'link': rule[5], 'mandatory': 'Yes', 'current_version_id': '', 'created_on': today(), 'updated_on': today()})
+    existing_modules = db_all('training_modules')
+    module_ids = set(existing_modules['module_id'].astype(str)) if not existing_modules.empty else set()
+    db_insert_many('training_modules', [{'module_id': module[0], 'title': module[1], 'module_group': module[3], 'target_path': module[2], 'mandatory': 'Yes', 'refresher_required': 'Yes', 'cpd_hours': module[4], 'validity_months': 36, 'added_by': 'System', 'created_on': today()} for module in CORE_THEORETICAL_MODULES if module[0] not in module_ids])
+    if db_all('authorization_matrix').empty:
+        db_insert_many('authorization_matrix', [{'matrix_id': uid('MATRIX'), 'scope': row[0], 'job_type': row[1], 'required_witness_count': row[2], 'required_supervised_count': row[3], 'required_joint_plan_count': row[4], 'required_independent_plan_count': row[5], 'required_level_for_auth': f'Level {row[6]} - Authorized' if row[6] == 3 else f'Level {row[6]} - Senior Authorized', 'minimum_job_level': f'Level {row[7]} - Authorized' if row[7] == 3 else f'Level {row[7]} - Senior Authorized', 'risk_category': row[8], 'validity_months': row[9], 'active': 'Yes'} for row in DEFAULT_AUTH_MATRIX])
+    default_rules = [('RULE-IMO-RO', 'IMO Recognized Organization Code', 'IMO RO Code', 'Current', 'Statutory', 'https://www.imo.org'), ('RULE-ISO9001', 'Quality Management System Requirements', 'ISO 9001', '2015', 'QMS', 'https://www.iso.org'), ('RULE-ISO17020', 'Inspection Body Competence Requirements', 'ISO/IEC 17020', '2012', 'Inspection', 'https://www.iso.org'), ('RULE-IACS-PR7', 'IACS Training and Qualification Principles', 'IACS PR7', 'Current', 'Competency', 'https://iacs.org.uk')]
+    existing_rules = db_all('rule_library')
+    rule_ids = set(existing_rules['rule_id'].astype(str)) if not existing_rules.empty else set()
+    db_insert_many('rule_library', [{'rule_id': rule[0], 'title': rule[1], 'standard': rule[2], 'revision': rule[3], 'category': rule[4], 'link': rule[5], 'mandatory': 'Yes', 'current_version_id': '', 'created_on': today(), 'updated_on': today()} for rule in default_rules if rule[0] not in rule_ids])
     audit('Database Seeded', 'World-class PSB HRDM data seeded', actor={'name': 'System', 'role': 'System'})
 
