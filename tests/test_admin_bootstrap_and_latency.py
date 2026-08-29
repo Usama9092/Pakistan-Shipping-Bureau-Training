@@ -42,3 +42,9 @@ def test_login_security_writes_are_trusted_internal_mutations():
     assert "system_write('login_security_failure')" in auth
     assert "system_write('login_security_clear')" in auth
 
+
+def test_explicit_system_write_bypasses_end_user_module_permissions():
+    runtime = (ROOT / 'psb_app/legacy_runtime.py').read_text(encoding='utf-8')
+    section = runtime.split('def _mutation_guard', 1)[1].split('def db_insert', 1)[0]
+    assert section.index('if is_system_write():') < section.index("actor = st.session_state.get('user')")
+
