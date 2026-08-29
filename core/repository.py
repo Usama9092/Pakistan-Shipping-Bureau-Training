@@ -42,6 +42,20 @@ class Repository:
         )
         self.cache_clear()
 
+    def insert_many(self, table: str, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        table = self.identifier(table)
+        cols = [self.identifier(c) for c in rows[0]]
+        if any(list(row) != list(rows[0]) for row in rows):
+            raise ValueError("Bulk insert rows must have identical columns")
+        placeholders = [f":{c}" for c in cols]
+        self.exec_sql(
+            f"insert into {table} ({', '.join(cols)}) values ({', '.join(placeholders)})",
+            rows,
+        )
+        self.cache_clear()
+
     def update(self, table: str, id_col: str, id_val: str, row: dict[str, Any]) -> None:
         if not row:
             return
@@ -59,3 +73,4 @@ class Repository:
         id_col = self.identifier(id_col)
         self.exec_sql(f"delete from {table} where {id_col} = :id", {"id": id_val})
         self.cache_clear()
+
