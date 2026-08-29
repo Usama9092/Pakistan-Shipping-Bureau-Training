@@ -25,6 +25,7 @@ ROLES = getattr(_runtime, 'ROLES')
 audit = getattr(_runtime, 'audit')
 db_all = getattr(_runtime, 'db_all')
 db_insert = getattr(_runtime, 'db_insert')
+db_insert_many = getattr(_runtime, 'db_insert_many')
 exec_sql = getattr(_runtime, 'exec_sql')
 logging = getattr(_runtime, 'logging')
 now = getattr(_runtime, 'now')
@@ -280,14 +281,11 @@ def ensure_interpretation_schema() -> None:
     except Exception:
         pass
 def seed_demo() -> None:
-    if not db_all('users').empty:
-        return
-    if INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD:
+    users_empty = db_all('users').empty
+    if users_empty and INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD:
         db_insert('users', {'user_id': 'USR-INITIAL-ADMIN', 'name': INITIAL_ADMIN_NAME, 'role': 'Admin', 'trainee_path': '', 'department': 'Administration', 'primary_department': 'Administration', 'assigned_duty': 'System Administration', 'email': INITIAL_ADMIN_EMAIL, 'login_id': INITIAL_ADMIN_LOGIN, 'password_hash': phash(INITIAL_ADMIN_PASSWORD), 'status': 'Active', 'account_status': 'Active', 'force_password_change': 'Yes', 'availability': 'Available', 'current_location': '', 'created_on': today(), 'last_login': '', 'password_changed_on': ''})
-    elif not ENABLE_DEMO_SEED:
-        return
     demo_users = [('USR-GM', 'Global Manager', 'GM', '', 'Management', 'Executive Governance', 'gm@psbureau.org', 'gm', '', '', ''), ('USR-ADMIN', 'PSB Admin', 'Admin', '', 'Administration', 'System Control', 'admin@psbureau.org', 'admin', '', '', ''), ('USR-MGMT', 'Management User', 'Management', '', 'Management', 'Oversight', 'management@psbureau.org', 'management', '', '', ''), ('USR-TRAINER', 'Training Officer', 'Trainer', '', 'Training', 'Qualification Path Training, Mentoring and Development', 'trainer@psbureau.org', 'trainer', '', '', ''), ('USR-DEPT-MGR', 'NSC Department Manager', 'Department Manager', '', 'Survey NSC', 'Department Qualification Governance', 'deptmanager@psbureau.org', 'deptmanager', '', '', ''), ('USR-QMR', 'QMS Representative', 'QMR', '', 'QMS', 'QMS Review', 'qmr@psbureau.org', 'qmr', '', '', ''), ('USR-SURVEYOR', 'Sample NSC Trainee', 'Trainee', 'NSC Surveyor', 'Survey NSC', 'NSC Surveyor Path', 'surveyor@psbureau.org', 'surveyor', '', 'USR-TRAINER', 'Training Officer'), ('USR-APPRAISER', 'Sample Plan Appraisal Trainee', 'Trainee', 'Plan Appraiser', 'Plan Appraisal', 'Plan Appraiser Path', 'appraiser@psbureau.org', 'appraiser', '', 'USR-TRAINER', 'Training Officer')]
-    if not ENABLE_DEMO_SEED or (INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD):
+    if (not users_empty) or not ENABLE_DEMO_SEED or (INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_LOGIN and INITIAL_ADMIN_PASSWORD):
         demo_users = []
     elif not DEMO_PASSWORD:
         st.warning('ENABLE_DEMO_SEED is enabled but DEMO_PASSWORD is not configured. Demo users were not created.')
@@ -297,20 +295,20 @@ def seed_demo() -> None:
         db_insert('users', {'user_id': u[0], 'name': u[1], 'role': u[2], 'trainee_path': u[3], 'department': u[4], 'primary_department': u[4].split(',')[0].strip(), 'assigned_duty': u[5], 'email': u[6], 'login_id': u[7], 'password_hash': phash(password), 'status': 'Active', 'account_status': 'Active', 'force_password_change': 'No', 'availability': 'Available', 'current_location': 'Karachi', 'mentor_id': u[9], 'mentor_name': u[10], 'tutor_id': u[9], 'tutor_name': u[10], 'competency_level': 'Level 0 - Trainee', 'created_on': today(), 'last_login': '', 'password_changed_on': today()})
     existing_roles = db_all('roles')
     existing_role_names = set(existing_roles['role_name'].astype(str)) if (not existing_roles.empty and 'role_name' in existing_roles.columns) else set()
-    for role_name in ROLES:
-        if role_name not in existing_role_names:
-            db_insert('roles', {'role_id': uid('ROLE'), 'role_name': role_name, 'description': DEFAULT_ROLE_DESCRIPTIONS.get(role_name, ''), 'status': 'Active', 'created_on': today(), 'updated_on': now()})
+    missing_roles = [{'role_id': uid('ROLE'), 'role_name': role_name, 'description': DEFAULT_ROLE_DESCRIPTIONS.get(role_name, ''), 'status': 'Active', 'created_on': today(), 'updated_on': now()} for role_name in ROLES if role_name not in existing_role_names]
+    db_insert_many('roles', missing_roles)
     perms_existing = db_all('permissions')
+    missing_permissions = []
     for module_name in PERMISSION_MODULES:
         for action_name in PERMISSION_ACTIONS:
             for scope_name in PERMISSION_SCOPES:
                 exists = perms_existing[(perms_existing['module_name'].astype(str) == module_name) & (perms_existing['action'].astype(str) == action_name) & (perms_existing['scope'].astype(str) == scope_name)] if not perms_existing.empty else pd.DataFrame()
                 if exists.empty:
-                    db_insert('permissions', {'permission_id': uid('PERM'), 'module_name': module_name, 'action': action_name, 'scope': scope_name, 'description': f'{action_name} {module_name} at {scope_name} scope', 'status': 'Active', 'created_on': today()})
+                    missing_permissions.append({'permission_id': uid('PERM'), 'module_name': module_name, 'action': action_name, 'scope': scope_name, 'description': f'{action_name} {module_name} at {scope_name} scope', 'status': 'Active', 'created_on': today()})
+    db_insert_many('permissions', missing_permissions)
     if db_all('system_settings').empty:
         defaults = [('organization_name', 'Pakistan Shipping Bureau', 'General', 'Organization display name'), ('timezone', 'Asia/Karachi', 'General', 'Application timezone'), ('date_format', 'DD-MMM-YYYY', 'General', 'Display date format'), ('session_timeout_minutes', '60', 'Security', 'Inactive session timeout'), ('max_login_attempts', str(MAX_LOGIN_ATTEMPTS), 'Security', 'Maximum failed login attempts'), ('login_block_minutes', str(LOGIN_BLOCK_MINUTES), 'Security', 'Account/login block duration'), ('minimum_password_length', '12', 'Security', 'Minimum password length'), ('password_expiry_days', '90', 'Security', 'Password expiry interval'), ('require_2fa', 'No', 'Security', 'Require two-factor authentication'), ('email_notifications_enabled', 'Yes', 'Notifications', 'Enable email notifications'), ('in_app_notifications_enabled', 'Yes', 'Notifications', 'Enable in-app notifications'), ('training_notifications_enabled', 'Yes', 'Notifications', 'Enable training reminders'), ('authorization_notifications_enabled', 'Yes', 'Notifications', 'Enable authorization expiry reminders'), ('ncr_notifications_enabled', 'Yes', 'Notifications', 'Enable NCR due reminders'), ('revalidation_notifications_enabled', 'Yes', 'Notifications', 'Enable revalidation reminders'), ('training_reminder_days', '30', 'Workflow', 'Training due reminder lead time'), ('authorization_reminder_days', '90', 'Workflow', 'Authorization expiry reminder lead time'), ('revalidation_reminder_days', '90', 'Workflow', 'Revalidation reminder lead time'), ('ncr_reminder_days', '7', 'Workflow', 'NCR due reminder lead time'), ('scheduler_enabled', 'Yes', 'Scheduler', 'Enable scheduled notifications/jobs'), ('scheduler_last_tick', 'Not recorded', 'Scheduler', 'Last successful scheduler tick'), ('scheduler_next_tick', 'Not recorded', 'Scheduler', 'Next expected scheduler tick'), ('default_language', 'English', 'General', 'Default application language')]
-        for key, value, group, desc in defaults:
-            db_insert('system_settings', {'setting_key': key, 'setting_value': value, 'setting_group': group, 'description': desc, 'updated_by': 'System', 'updated_on': now()})
+        db_insert_many('system_settings', [{'setting_key': key, 'setting_value': value, 'setting_group': group, 'description': desc, 'updated_by': 'System', 'updated_on': now()} for key, value, group, desc in defaults])
     if db_all('role_permissions').empty:
         baseline = {
             'Admin': {'Administration': {'View','Create','Edit','Manage','Export'}},
@@ -319,12 +317,14 @@ def seed_demo() -> None:
             'Management': {'Dashboard': {'View'}, 'Authorization': {'View','Review','Approve'}},
         }
         perms = db_all('permissions')
+        baseline_rows = []
         for role_name, modules in baseline.items():
             for module_name, actions in modules.items():
                 for action_name in actions:
                     matches = perms[(perms['module_name'] == module_name) & (perms['action'] == action_name) & (perms['scope'] == 'Organization-wide')]
                     if not matches.empty:
-                        db_insert('role_permissions', {'role_permission_id': uid('RPERM'), 'role_name': role_name, 'permission_id': matches.iloc[0]['permission_id'], 'enabled': 'Yes', 'created_on': now(), 'updated_on': now()})
+                        baseline_rows.append({'role_permission_id': uid('RPERM'), 'role_name': role_name, 'permission_id': matches.iloc[0]['permission_id'], 'enabled': 'Yes', 'created_on': now(), 'updated_on': now()})
+        db_insert_many('role_permissions', baseline_rows)
     _runtime._ensure_role_permission_baseline()
     for module in CORE_THEORETICAL_MODULES:
         db_insert('training_modules', {'module_id': module[0], 'title': module[1], 'module_group': module[3], 'target_path': module[2], 'mandatory': 'Yes', 'refresher_required': 'Yes', 'cpd_hours': module[4], 'validity_months': 36, 'added_by': 'System', 'created_on': today()})
@@ -333,3 +333,4 @@ def seed_demo() -> None:
     for rule in [('RULE-IMO-RO', 'IMO Recognized Organization Code', 'IMO RO Code', 'Current', 'Statutory', 'https://www.imo.org'), ('RULE-ISO9001', 'Quality Management System Requirements', 'ISO 9001', '2015', 'QMS', 'https://www.iso.org'), ('RULE-ISO17020', 'Inspection Body Competence Requirements', 'ISO/IEC 17020', '2012', 'Inspection', 'https://www.iso.org'), ('RULE-IACS-PR7', 'IACS Training and Qualification Principles', 'IACS PR7', 'Current', 'Competency', 'https://iacs.org.uk')]:
         db_insert('rule_library', {'rule_id': rule[0], 'title': rule[1], 'standard': rule[2], 'revision': rule[3], 'category': rule[4], 'link': rule[5], 'mandatory': 'Yes', 'current_version_id': '', 'created_on': today(), 'updated_on': today()})
     audit('Database Seeded', 'World-class PSB HRDM data seeded', actor={'name': 'System', 'role': 'System'})
+
