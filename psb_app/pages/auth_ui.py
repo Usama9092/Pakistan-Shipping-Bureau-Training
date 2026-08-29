@@ -166,7 +166,15 @@ def login_page() -> None:
     if 'captcha_question' not in st.session_state:
         a, b = (random.randint(2, 12), random.randint(2, 12))
         st.session_state['captcha_question'] = f'{a} + {b}'
-        st.session_state['captcha_answer'] = str(a + b)
+    # Derive the answer from the exact question rendered to the user.  Keeping
+    # a second answer value in session state can become stale across a Render
+    # restart while the browser reconnects to the same Streamlit session.
+    try:
+        captcha_expected = str(sum(int(part.strip()) for part in str(st.session_state['captcha_question']).split('+')))
+    except (TypeError, ValueError):
+        a, b = (random.randint(2, 12), random.randint(2, 12))
+        st.session_state['captcha_question'] = f'{a} + {b}'
+        captcha_expected = str(a + b)
     logo_html = f"<img src='{logo_data_uri()}' alt='PSB Logo' />" if LOGO_PATH.exists() else ''
     st.markdown(
         "<style>.login-logo-row > div{font-size:2.65rem!important;line-height:1.08!important;font-weight:950!important}</style>",
@@ -197,7 +205,7 @@ def login_page() -> None:
         if blocked_until and isinstance(blocked_until, datetime) and (now_ts < blocked_until):
             st.error('You are temporarily blocked due to too many failed login attempts.')
             return
-        if captcha.strip() != st.session_state.get('captcha_answer', ''):
+        if captcha.strip() != captcha_expected:
             st.error('Security verification failed. Please try again.')
             return
         login_value = clean(login).lower().strip()
