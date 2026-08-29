@@ -55,3 +55,17 @@ def test_captcha_answer_is_derived_from_the_rendered_question():
     assert "captcha_expected = str(sum(" in section
     assert "captcha.strip() != captcha_expected" in section
 
+
+def test_master_seed_runs_when_an_admin_already_exists_and_batches_permissions():
+    service = (ROOT / 'psb_app/services/database_service.py').read_text(encoding='utf-8')
+    section = service.split('def seed_demo', 1)[1]
+    assert "if not db_all('users').empty:\n        return" not in section
+    assert "db_insert_many('permissions', missing_permissions)" in section
+    assert "db_insert_many('system_settings'" in section
+
+
+def test_repository_supports_single_transaction_bulk_insert():
+    repository = (ROOT / 'core/repository.py').read_text(encoding='utf-8')
+    assert 'def insert_many(' in repository
+    assert 'self.exec_sql(' in repository.split('def insert_many', 1)[1].split('def update', 1)[0]
+
