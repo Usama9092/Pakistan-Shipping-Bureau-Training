@@ -48,3 +48,10 @@ def test_explicit_system_write_bypasses_end_user_module_permissions():
     section = runtime.split('def _mutation_guard', 1)[1].split('def db_insert', 1)[0]
     assert section.index('if is_system_write():') < section.index("actor = st.session_state.get('user')")
 
+
+def test_captcha_answer_is_derived_from_the_rendered_question():
+    auth = (ROOT / 'psb_app/pages/auth_ui.py').read_text(encoding='utf-8')
+    section = auth.split('def login_page', 1)[1].split('def require_login', 1)[0]
+    assert "captcha_expected = str(sum(" in section
+    assert "captcha.strip() != captcha_expected" in section
+
