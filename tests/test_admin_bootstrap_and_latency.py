@@ -80,3 +80,18 @@ def test_role_permission_baseline_avoids_per_grant_database_queries():
     assert "db_where('role_permissions'" not in section
     assert "db_insert_many('role_permissions', missing_rows)" in section
 
+
+def test_administration_master_repair_migration_is_additive():
+    migration = (ROOT / 'database/migrations/048_administration_master_repair.sql').read_text(encoding='utf-8').lower()
+    for table in ['roles', 'permissions', 'role_permissions', 'user_permission_overrides', 'system_settings']:
+        assert f'create table if not exists {table}' in migration
+
+
+def test_production_dockerfile_has_non_root_health_checked_runtime():
+    dockerfile = (ROOT / 'Dockerfile').read_text(encoding='utf-8')
+    assert 'FROM python:3.12-slim' in dockerfile
+    assert 'USER psb' in dockerfile
+    assert 'HEALTHCHECK' in dockerfile
+    assert '/_stcore/health' in dockerfile
+    assert '--server.address=0.0.0.0' in dockerfile
+
