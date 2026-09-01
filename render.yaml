@@ -1,14 +1,17 @@
-# Deployment refresh: administration migration 048 and Docker runtime, 2026-09-01
+# Deployment refresh: startup health gate and stable Streamlit runtime, 2026-09-01
 services:
   - type: web
     name: psb-world-class-hrdm
     env: python
     plan: free
     buildCommand: pip install -r requirements-prod.txt
-    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true --server.fileWatcherType=none
+    healthCheckPath: /_stcore/health
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.8
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
@@ -41,4 +44,3 @@ services:
         value: https://training.psbureau.org
       - key: MIN_PASSWORD_LENGTH
         value: "12"
-
