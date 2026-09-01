@@ -6,7 +6,7 @@
   "schema_tables": 106,
   "rls_enabled": 106,
   "client_revokes": 106,
-  "migration_versions": "001-047",
+  "migration_versions": "001-048",
   "production_security_model": "server-mediated; direct anon/authenticated table access revoked",
   "practical_witness_model": "requirement template \u2192 activity/job \u2192 eligible witness \u2192 evidence links \u2192 controlled assessment \u2192 competency readiness",
   "external_staging_required": [
@@ -47,3 +47,4 @@
   "security_hardening": "private signed file access; upload validation/rate-limit/malware gate; persistent login throttle; password expiry; enforceable encrypted TOTP MFA; server-side local session tokens; record-scope RBAC; query timeouts",
   "communication": "authorization case correspondence plus CRB/final-decision notifications"
 }
+
