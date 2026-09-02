@@ -1,0 +1,18 @@
+name: PSB uptime monitor
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install websocket-client
+      - run: python scripts/uptime_probe.py
+        env:
+          PSB_MONITOR_URL: ${{ vars.PSB_MONITOR_URL }}
+
