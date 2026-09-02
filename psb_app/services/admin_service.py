@@ -6,6 +6,7 @@ from psb_app.legacy_runtime import (
     actor_get,
     audit,
     can_action,
+    database_is_persistent,
     datetime,
     db_all,
     db_update,
@@ -13,6 +14,7 @@ from psb_app.legacy_runtime import (
     json,
     now,
     pd,
+    query_sql,
     st,
     table_exists,
 )
@@ -43,10 +45,25 @@ def _save_setting(actor: dict, key: str, value: str, reason: str='Configuration 
     db_update('system_settings', 'setting_key', key, {'setting_value': str(value), 'updated_by': actor_get(actor, 'user_id'), 'updated_on': now()})
     audit('System Setting Changed', f'{key} updated', actor=actor, entity_type='System Setting', entity_id=key, reason=reason, after_value=str(value))
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _backup_export_tables() -> list[str]:
     """Return business tables suitable for an application-level backup export."""
     tables = ['users', 'user_departments', 'user_assignments', 'roles', 'permissions', 'role_permissions', 'user_permission_overrides', 'departments', 'system_settings', 'training_modules', 'trainings', 'files', 'training_records', 'question_bank', 'assessment_history', 'competency_matrix', 'authorization_matrix', 'development_plans', 'field_exposure_matrix', 'witness_surveys', 'supervised_activities', 'authorization_requests', 'authorization_certificates', 'crb_reviews', 'annual_reviews', 'revalidation_requests', 'job_requests', 'kpi_records', 'cpd_records', 'knowledge_library', 'knowledge_acknowledgements', 'rule_library', 'document_versions', 'capa_register', 'notifications', 'audit_trail', 'technical_authorities', 'technical_reviews', 'competency_ncrs', 'authorization_restrictions', 'client_feedback', 'succession_plans', 'workforce_forecasts', 'accreditation_evidence', 'technical_interpretations']
-    return [t for t in tables if table_exists(t)]
+    if database_is_persistent():
+        try:
+            existing = query_sql(
+                "select table_name from information_schema.tables "
+                "where table_schema = 'public' and table_name = any(:tables)",
+                {'tables': tables},
+            )
+            if not existing.empty and 'table_name' in existing.columns:
+                present = set(existing['table_name'].astype(str))
+                return [table for table in tables if table in present]
+        except Exception:
+            # The guarded compatibility fallback keeps non-PostgreSQL and older
+            # drivers functional while the production path remains one query.
+            pass
+    return [table for table in tables if table_exists(table)]
 
 def _sanitize_backup_frame(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
     """Remove credentials/secrets from application-level exports."""
@@ -78,3 +95,4 @@ def _build_backup_payload(backup_type: str, tables: list[str]):
             for t in tables:
                 _sanitize_backup_frame(db_all(t), t).to_excel(writer, sheet_name=t[:31], index=False)
         return (buf.getvalue(), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f"psb_application_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
+
