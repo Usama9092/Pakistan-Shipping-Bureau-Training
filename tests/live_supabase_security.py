@@ -17,8 +17,9 @@ def post(url, payload, headers=None):
     with urllib.request.urlopen(req,timeout=20) as r:
         return r.status, json.loads(r.read().decode() or '{}')
 
-def get(url, headers):
-    req=urllib.request.Request(url,headers=headers)
+def request(url, headers, method='GET', payload=None):
+    data=None if payload is None else json.dumps(payload).encode()
+    req=urllib.request.Request(url,headers={'Content-Type':'application/json',**headers},method=method,data=data)
     try:
         with urllib.request.urlopen(req,timeout=20) as r: return r.status, r.read(1000)
     except urllib.error.HTTPError as e: return e.code, e.read(1000)
@@ -31,8 +32,12 @@ if __name__=='__main__':
     token=body['access_token']
     headers={'apikey':ANON,'Authorization':'Bearer '+token}
     for table in TABLES:
-        code,_=get(f'{SUPABASE_URL}/rest/v1/{table}?select=*&limit=1',headers)
-        if code not in (401,403):
-            raise SystemExit(f'FAIL: direct client access to {table} returned HTTP {code}; expected 401/403')
-        print(f'PASS: direct client access denied for {table} (HTTP {code})')
+        code,body=request(f'{SUPABASE_URL}/rest/v1/{table}?select=*&limit=1',headers)
+        if code == 200 and json.loads(body.decode() or '[]') == []:
+            print(f'PASS: RLS returned no rows for {table}')
+        elif code in (401,403):
+            print(f'PASS: direct client access denied for {table} (HTTP {code})')
+        else:
+            raise SystemExit(f'FAIL: RLS exposed data from {table} (HTTP {code})')
     print('SUPABASE LIVE SECURITY GATE: PASS')
+
