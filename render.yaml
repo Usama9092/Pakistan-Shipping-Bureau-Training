@@ -1,17 +1,15 @@
-# Deployment refresh: startup health gate and stable Streamlit runtime, 2026-09-01
+# Production Docker deployment — single canonical runtime, 2026-09-02
 services:
   - type: web
     name: psb-world-class-hrdm
-    env: python
+    env: docker
     plan: free
-    buildCommand: pip install -r requirements-prod.txt
-    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true --server.fileWatcherType=none
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /_stcore/health
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: PYTHON_VERSION
-        value: 3.12.8
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
@@ -39,8 +37,8 @@ services:
       - key: SUPABASE_BUCKET
         value: psb-hrdm-files
       - key: PUBLIC_URL
-        value: https://training.psbureau.org
+        value: https://pakistan-shipping-bureau-training.onrender.com
       - key: VERIFY_PUBLIC_URL
-        value: https://training.psbureau.org
+        value: https://pakistan-shipping-bureau-training.onrender.com
       - key: MIN_PASSWORD_LENGTH
         value: "12"
