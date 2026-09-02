@@ -4,7 +4,7 @@ import json, os, urllib.request
 from urllib.parse import urlparse
 
 def main():
-    base=os.getenv('PSB_MONITOR_URL','https://pakistan-shipping-bureau-training.onrender.com').rstrip('/')
+    base=(os.getenv('PSB_MONITOR_URL') or 'https://pakistan-shipping-bureau-training.onrender.com').rstrip('/')
     results={}
     for path in ('/_stcore/health','/_stcore/host-config','/'):
         with urllib.request.urlopen(base+path,timeout=30) as response:
