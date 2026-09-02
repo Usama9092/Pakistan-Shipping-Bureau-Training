@@ -1,0 +1,89 @@
+name: PSB staging assurance
+on:
+  workflow_dispatch:
+    inputs:
+      run_restore:
+        description: Run isolated encrypted restore drill
+        required: true
+        type: boolean
+        default: false
+jobs:
+  rls-security:
+    environment: staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python tests/live_supabase_security.py
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          PSB_STAGING_LOGIN: ${{ secrets.PSB_RLS_TEST_LOGIN }}
+          PSB_STAGING_PASSWORD: ${{ secrets.PSB_RLS_TEST_PASSWORD }}
+  authenticated-regression:
+    environment: staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install playwright && playwright install --with-deps chromium
+      - run: python tests/browser_role_regression.py
+        env:
+          PSB_BASE_URL: ${{ vars.PSB_STAGING_APP_URL }}
+          PSB_ROLE_MATRIX_JSON: ${{ secrets.PSB_ROLE_MATRIX_JSON }}
+          PSB_TEST_ADMIN_LOGIN: ${{ secrets.PSB_TEST_ADMIN_LOGIN }}
+          PSB_TEST_ADMIN_PASSWORD: ${{ secrets.PSB_TEST_ADMIN_PASSWORD }}
+          PSB_TEST_GM_LOGIN: ${{ secrets.PSB_TEST_GM_LOGIN }}
+          PSB_TEST_GM_PASSWORD: ${{ secrets.PSB_TEST_GM_PASSWORD }}
+          PSB_TEST_TRAINER_LOGIN: ${{ secrets.PSB_TEST_TRAINER_LOGIN }}
+          PSB_TEST_TRAINER_PASSWORD: ${{ secrets.PSB_TEST_TRAINER_PASSWORD }}
+          PSB_TEST_PROBATION_LOGIN: ${{ secrets.PSB_TEST_PROBATION_LOGIN }}
+          PSB_TEST_PROBATION_PASSWORD: ${{ secrets.PSB_TEST_PROBATION_PASSWORD }}
+          PSB_TEST_TRAINEE_LOGIN: ${{ secrets.PSB_TEST_TRAINEE_LOGIN }}
+          PSB_TEST_TRAINEE_PASSWORD: ${{ secrets.PSB_TEST_TRAINEE_PASSWORD }}
+          PSB_TEST_NSC_LOGIN: ${{ secrets.PSB_TEST_NSC_LOGIN }}
+          PSB_TEST_NSC_PASSWORD: ${{ secrets.PSB_TEST_NSC_PASSWORD }}
+          PSB_TEST_INSERVICE_LOGIN: ${{ secrets.PSB_TEST_INSERVICE_LOGIN }}
+          PSB_TEST_INSERVICE_PASSWORD: ${{ secrets.PSB_TEST_INSERVICE_PASSWORD }}
+          PSB_TEST_PLAN_LOGIN: ${{ secrets.PSB_TEST_PLAN_LOGIN }}
+          PSB_TEST_PLAN_PASSWORD: ${{ secrets.PSB_TEST_PLAN_PASSWORD }}
+          PSB_TEST_INDUSTRIAL_LOGIN: ${{ secrets.PSB_TEST_INDUSTRIAL_LOGIN }}
+          PSB_TEST_INDUSTRIAL_PASSWORD: ${{ secrets.PSB_TEST_INDUSTRIAL_PASSWORD }}
+          PSB_TEST_DEPT_MANAGER_LOGIN: ${{ secrets.PSB_TEST_DEPT_MANAGER_LOGIN }}
+          PSB_TEST_DEPT_MANAGER_PASSWORD: ${{ secrets.PSB_TEST_DEPT_MANAGER_PASSWORD }}
+          PSB_TEST_SURVEYOR_LOGIN: ${{ secrets.PSB_TEST_SURVEYOR_LOGIN }}
+          PSB_TEST_SURVEYOR_PASSWORD: ${{ secrets.PSB_TEST_SURVEYOR_PASSWORD }}
+          PSB_TEST_QMS_AUDITOR_LOGIN: ${{ secrets.PSB_TEST_QMS_AUDITOR_LOGIN }}
+          PSB_TEST_QMS_AUDITOR_PASSWORD: ${{ secrets.PSB_TEST_QMS_AUDITOR_PASSWORD }}
+          PSB_TEST_QMR_LOGIN: ${{ secrets.PSB_TEST_QMR_LOGIN }}
+          PSB_TEST_QMR_PASSWORD: ${{ secrets.PSB_TEST_QMR_PASSWORD }}
+          PSB_TEST_RULE_LOGIN: ${{ secrets.PSB_TEST_RULE_LOGIN }}
+          PSB_TEST_RULE_PASSWORD: ${{ secrets.PSB_TEST_RULE_PASSWORD }}
+          PSB_TEST_MANAGEMENT_LOGIN: ${{ secrets.PSB_TEST_MANAGEMENT_LOGIN }}
+          PSB_TEST_MANAGEMENT_PASSWORD: ${{ secrets.PSB_TEST_MANAGEMENT_PASSWORD }}
+  load-test:
+    environment: staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install locust
+      - run: locust -f locustfile.py --headless -u 50 -r 5 -t 5m --host "${{ vars.PSB_STAGING_APP_URL }}" --html load-report.html
+      - uses: actions/upload-artifact@v4
+        with: {name: staging-load-report, path: load-report.html}
+  encrypted-restore:
+    if: ${{ inputs.run_restore }}
+    environment: staging-restore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install cryptography
+      - run: python scripts/encrypted_postgres_restore_drill.py
+        env:
+          PSB_BACKUP_SOURCE_DATABASE_URL: ${{ secrets.PSB_BACKUP_SOURCE_DATABASE_URL }}
+          PSB_RESTORE_TARGET_DATABASE_URL: ${{ secrets.PSB_RESTORE_TARGET_DATABASE_URL }}
+          PSB_BACKUP_ENCRYPTION_KEY: ${{ secrets.PSB_BACKUP_ENCRYPTION_KEY }}
+          PSB_RESTORE_TARGET_CONFIRM: staging
+          PSB_RESTORE_ALLOW_TARGET: ${{ vars.PSB_RESTORE_ALLOW_TARGET }}
+
