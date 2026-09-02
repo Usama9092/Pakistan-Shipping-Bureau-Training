@@ -1,0 +1,18 @@
+[
+  {"role":"Admin","login_env":"PSB_TEST_ADMIN_LOGIN","password_env":"PSB_TEST_ADMIN_PASSWORD","expected_navigation":["Users & Roles","Permissions","System Settings"]},
+  {"role":"GM","login_env":"PSB_TEST_GM_LOGIN","password_env":"PSB_TEST_GM_PASSWORD","expected_navigation":["GM Capability","GM Governance","GM Quality"]},
+  {"role":"Trainer","login_env":"PSB_TEST_TRAINER_LOGIN","password_env":"PSB_TEST_TRAINER_PASSWORD","expected_navigation":["Qualification Workspace"]},
+  {"role":"On Probation","login_env":"PSB_TEST_PROBATION_LOGIN","password_env":"PSB_TEST_PROBATION_PASSWORD","expected_navigation":["My Qualification","My Development"]},
+  {"role":"Trainee","login_env":"PSB_TEST_TRAINEE_LOGIN","password_env":"PSB_TEST_TRAINEE_PASSWORD","expected_navigation":["My Qualification","My Development"]},
+  {"role":"NSC Surveyor","login_env":"PSB_TEST_NSC_LOGIN","password_env":"PSB_TEST_NSC_PASSWORD","expected_navigation":["My Qualification","My Assessments"]},
+  {"role":"In-Service Surveyor","login_env":"PSB_TEST_INSERVICE_LOGIN","password_env":"PSB_TEST_INSERVICE_PASSWORD","expected_navigation":["My Qualification","My Assessments"]},
+  {"role":"Plan Appraiser","login_env":"PSB_TEST_PLAN_LOGIN","password_env":"PSB_TEST_PLAN_PASSWORD","expected_navigation":["My Qualification","Interpretation Portal"]},
+  {"role":"Industrial Surveyor","login_env":"PSB_TEST_INDUSTRIAL_LOGIN","password_env":"PSB_TEST_INDUSTRIAL_PASSWORD","expected_navigation":["My Qualification","My Assessments"]},
+  {"role":"Department Manager","login_env":"PSB_TEST_DEPT_MANAGER_LOGIN","password_env":"PSB_TEST_DEPT_MANAGER_PASSWORD","expected_navigation":["Department Qualification","Authorization Cases"]},
+  {"role":"Surveyor","login_env":"PSB_TEST_SURVEYOR_LOGIN","password_env":"PSB_TEST_SURVEYOR_PASSWORD","expected_navigation":["My Qualification","My Assessments"]},
+  {"role":"QMS Auditor","login_env":"PSB_TEST_QMS_AUDITOR_LOGIN","password_env":"PSB_TEST_QMS_AUDITOR_PASSWORD","expected_navigation":["My Audits","Audit Workspace"]},
+  {"role":"QMR","login_env":"PSB_TEST_QMR_LOGIN","password_env":"PSB_TEST_QMR_PASSWORD","expected_navigation":["Management Review Dashboard","Accreditation Readiness"]},
+  {"role":"Rule Development Rep","login_env":"PSB_TEST_RULE_LOGIN","password_env":"PSB_TEST_RULE_PASSWORD","expected_navigation":["Rule Development","Interpretation Portal"]},
+  {"role":"Management","login_env":"PSB_TEST_MANAGEMENT_LOGIN","password_env":"PSB_TEST_MANAGEMENT_PASSWORD","expected_navigation":["Executive Dashboard","Authorization Decisions"]}
+]
+
