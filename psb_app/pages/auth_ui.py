@@ -177,21 +177,60 @@ def login_page() -> None:
         captcha_expected = str(a + b)
     logo_html = f"<img src='{logo_data_uri()}' alt='PSB Logo' />" if LOGO_PATH.exists() else ''
     st.markdown(
-        "<style>.login-logo-row > div{font-size:2.65rem!important;line-height:1.08!important;font-weight:950!important}</style>",
+        """<style>
+        .login-logo-row > div{font-size:2.15rem!important;line-height:1.08!important;font-weight:950!important}
+        div[data-testid="stHorizontalBlock"]:has(.login-brand-card){
+          width:min(1080px,96vw);margin:4vh auto 2rem;gap:0!important;align-items:stretch;
+          background:#fff;border:1px solid #d7e1dd;border-radius:22px;overflow:hidden;
+          box-shadow:0 24px 70px rgba(1,8,25,.14)
+        }
+        div[data-testid="stHorizontalBlock"]:has(.login-brand-card)>div[data-testid="stColumn"]{padding:0!important}
+        .login-brand-card{min-height:560px;padding:2.6rem;box-sizing:border-box;color:#fff;
+          background:radial-gradient(circle at 18% 15%,rgba(74,170,105,.16),transparent 28%),linear-gradient(145deg,#010819 0%,#061b36 68%,#095b25 155%);
+          display:flex;flex-direction:column;justify-content:space-between}
+        .login-brand-card h1{color:#fff!important;font-size:2.45rem!important;margin:.8rem 0 .6rem!important}
+        .login-brand-card p{color:#dbe5eb!important;font-size:1rem;line-height:1.65;max-width:500px}
+        .login-panel-head{padding:2.6rem 2.6rem .5rem}.login-panel-head h2{font-size:2rem;margin:0;color:#071225}.login-panel-head p{color:#667085;margin:.45rem 0 0}
+        div[data-testid="stHorizontalBlock"]:has(.login-brand-card)>div[data-testid="stColumn"]:last-child div[data-testid="stForm"]{
+          margin:0 2.6rem 2.6rem;padding:1.4rem;border-radius:16px!important;box-shadow:none!important
+        }
+        div[data-testid="stHorizontalBlock"]:has(.login-brand-card)>div[data-testid="stColumn"]:last-child .stButton>button{width:100%}
+        @media(max-width:920px){
+          div[data-testid="stHorizontalBlock"]:has(.login-brand-card){display:block!important;margin:1rem auto}
+          .login-brand-card{min-height:auto;padding:1.7rem}.login-brand-card h1{font-size:1.8rem!important}
+          .login-panel-head{padding:1.7rem 1.3rem .5rem}
+          div[data-testid="stHorizontalBlock"]:has(.login-brand-card)>div[data-testid="stColumn"]:last-child div[data-testid="stForm"]{margin:0 1.3rem 1.7rem}
+        }
+        </style>""",
         unsafe_allow_html=True,
     )
-    st.markdown(f"\n    <div class='login-shell'>\n      <div class='login-frame'>\n        <section class='login-brand'>\n          <div class='brand-content'>\n            <div class='login-logo-row'>\n              {logo_html}\n              <div style='font-weight:950;color:#fff;font-size:1.55rem;line-height:1.2'>Pakistan Shipping Bureau</div>\n            </div>\n            <h1>HRD&amp;M Portal</h1>\n          </div>\n        </section>\n        <section class='login-panel'>\n          <div class='login-card'>\n            <h2>Sign In</h2>\n            <p class='muted'>Access your account</p>\n    ", unsafe_allow_html=True)
+    brand_col, form_col = st.columns([1.08, .92], gap=None)
+    with brand_col:
+        st.markdown(f"""
+        <section class="login-brand-card">
+          <div>
+            <div class="login-logo-row">{logo_html}<div>Pakistan Shipping Bureau</div></div>
+            <div class="login-kicker">Qualification &amp; Authorization</div>
+            <h1>HRD&amp;M Portal</h1>
+            <p>A controlled platform for professional training, competency development, authorization and workforce governance.</p>
+            <div class="login-badges"><span class="login-badge">Secure access</span><span class="login-badge">Role-based portal</span><span class="login-badge">Audited records</span></div>
+          </div>
+          <div class="brand-footer"><span>Pakistan Shipping Bureau</span><span>Authorized users only</span></div>
+        </section>""", unsafe_allow_html=True)
+    with form_col:
+        st.markdown("<div class='login-panel-head'><div class='login-kicker'>Welcome back</div><h2>Sign In</h2><p>Use your official PSB account to continue.</p></div>", unsafe_allow_html=True)
     login_attempts = st.session_state.get('login_attempts', 0)
     blocked_until = st.session_state.get('login_blocked_until')
     now_ts = datetime.utcnow()
     if blocked_until and isinstance(blocked_until, datetime) and (now_ts < blocked_until):
         remaining = int((blocked_until - now_ts).total_seconds() / 60) + 1
         st.error(f'Too many failed login attempts. Please try again in {remaining} minute(s).')
-    with st.form('login', clear_on_submit=False):
-        login = st.text_input('Login ID or Email', placeholder='Enter your login ID or official email')
-        password = st.text_input('Password', type='password', placeholder='Enter your password')
-        captcha = st.text_input(f"Security Verification: {st.session_state['captcha_question']} = ?", placeholder='Answer')
-        submit = st.form_submit_button('Sign in to PSB Portal')
+    with form_col:
+        with st.form('login', clear_on_submit=False):
+            login = st.text_input('Login ID or Email', placeholder='Enter your login ID or official email')
+            password = st.text_input('Password', type='password', placeholder='Enter your password')
+            captcha = st.text_input(f"Security Verification: {st.session_state['captcha_question']} = ?", placeholder='Answer')
+            submit = st.form_submit_button('Sign in to PSB Portal')
     if AUTH_MODE.lower() == 'supabase':
         with st.expander('Forgot password?', expanded=False):
             reset_email = st.text_input('Official email', key='supabase_reset_email')
@@ -276,7 +315,6 @@ def login_page() -> None:
             st.session_state['mfa_verified'] = not _mfa_required()
             audit('User Login', f"{user['name']} logged in", actor=user)
             st.rerun()
-    st.markdown("\n          </div>\n        </section>\n      </div>\n    </div>\n    ", unsafe_allow_html=True)
 
 def require_login() -> dict:
     if 'logged_in' not in st.session_state:
