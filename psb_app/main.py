@@ -1,11 +1,19 @@
+import os
+
 from psb_app.services.database_service import ensure_accreditation_schema, init_db
 from psb_app.common import (
     APP_TITLE,
     LOGO_PATH,
     actor_get,
+    db_update,
+    exec_sql,
+    now,
+    phash,
+    query_sql,
     require_persistent_backend,
     st,
     uuid,
+    verify_password,
 )
 from psb_app.pages.auth_ui import (
     apply_style,
@@ -102,6 +110,66 @@ from psb_app.pages.qualification import (
 )
 from core.view_context import set_context
 from core.production import page_execution as _page_execution
+from core.system_write import system_write
+
+
+_SCOPED_RECOVERY_TARGETS = {
+    "USR-ADMIN": ("admin", "PSB_RECOVERY_ADMIN_PASSWORD"),
+    "USR-13F94456": ("umairadeem", "PSB_RECOVERY_UMAIR_ADEEM_PASSWORD"),
+    "USR-D7C7A414": ("usmanzafar", "PSB_RECOVERY_USMAN_ZAFAR_PASSWORD"),
+}
+
+
+def _apply_scoped_password_recovery() -> None:
+    """One-time owner-authorized recovery for three explicitly named accounts.
+
+    The routine is inert unless the Render-only enable flag is true. It never
+    creates users, changes roles/permissions, or touches any account outside the
+    three exact user IDs above. Each target must already be marked for a forced
+    password change. Once a user chooses a new password, this routine no longer
+    qualifies that account even if the flag were accidentally left enabled.
+    """
+    if os.getenv("PSB_SCOPED_RECOVERY_ENABLED", "false").strip().lower() != "true":
+        return
+
+    for user_id, (expected_login, env_name) in _SCOPED_RECOVERY_TARGETS.items():
+        temporary_password = os.getenv(env_name, "")
+        if not temporary_password:
+            continue
+
+        rows = query_sql(
+            "select user_id, login_id, password_hash, force_password_change "
+            "from users where user_id = :uid and lower(login_id) = :login_key",
+            {"uid": user_id, "login_key": expected_login},
+        )
+        if rows.empty:
+            continue
+
+        row = rows.iloc[0]
+        if str(row.get("force_password_change", "No")) != "Yes":
+            continue
+
+        already_set, _ = verify_password(str(row.get("password_hash", "")), temporary_password)
+        if not already_set:
+            with system_write("owner-authorized scoped password recovery"):
+                db_update(
+                    "users",
+                    "user_id",
+                    user_id,
+                    {"password_hash": phash(temporary_password), "force_password_change": "Yes"},
+                )
+            exec_sql(
+                "update auth_sessions set revoked_on = coalesce(revoked_on, :ts) "
+                "where user_id = :uid and revoked_on is null",
+                {"ts": now(), "uid": user_id},
+            )
+
+        # Remove only this target account's failed-login state.
+        exec_sql(
+            "delete from login_security_state where lower(login_key) = :login_key",
+            {"login_key": expected_login},
+        )
+
 
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else "⚓", layout="wide", initial_sidebar_state="expanded")
@@ -110,6 +178,7 @@ def main() -> None:
     apply_style()
     require_persistent_backend()
     init_db()
+    _apply_scoped_password_recovery()
     ensure_accreditation_schema()
     query_params = st.query_params
     public_cert = str(query_params.get("verify", "") or "").strip()
