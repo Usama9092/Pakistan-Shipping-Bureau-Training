@@ -1,4 +1,5 @@
-import os
+import hashlib
+import secrets
 
 from psb_app.services.database_service import ensure_accreditation_schema, init_db
 from psb_app.common import (
@@ -12,8 +13,8 @@ from psb_app.common import (
     query_sql,
     require_persistent_backend,
     st,
+    temp_password,
     uuid,
-    verify_password,
 )
 from psb_app.pages.auth_ui import (
     apply_style,
@@ -113,62 +114,71 @@ from core.production import page_execution as _page_execution
 from core.system_write import system_write
 
 
+_RECOVERY_CODE_SHA256 = "4116b42ce440807695da5ca6f9333f72254e4ec40bfa20448301f284fe2d11c6"
 _SCOPED_RECOVERY_TARGETS = {
-    "USR-ADMIN": ("admin", "PSB_RECOVERY_ADMIN_PASSWORD"),
-    "USR-13F94456": ("umairadeem", "PSB_RECOVERY_UMAIR_ADEEM_PASSWORD"),
-    "USR-D7C7A414": ("usmanzafar", "PSB_RECOVERY_USMAN_ZAFAR_PASSWORD"),
+    "USR-ADMIN": "admin",
+    "USR-13F94456": "umairadeem",
+    "USR-D7C7A414": "usmanzafar",
 }
 
 
-def _apply_scoped_password_recovery() -> None:
-    """One-time owner-authorized recovery for three explicitly named accounts.
+def _scoped_recovery_page() -> None:
+    """Short-lived owner recovery page for exactly three locked accounts."""
+    st.markdown("## PSB Account Recovery")
+    st.caption("This temporary recovery tool is restricted to Admin, Umair Adeem and Usman Zafar only.")
 
-    The routine is inert unless the Render-only enable flag is true. It never
-    creates users, changes roles/permissions, or touches any account outside the
-    three exact user IDs above. Each target must already be marked for a forced
-    password change. Once a user chooses a new password, this routine no longer
-    qualifies that account even if the flag were accidentally left enabled.
-    """
-    if os.getenv("PSB_SCOPED_RECOVERY_ENABLED", "false").strip().lower() != "true":
+    existing = st.session_state.get("psb_scoped_recovery_passwords")
+    if existing:
+        st.success("Temporary passwords were generated successfully. Copy them now; each user must change the password immediately after login.")
+        st.table([{"Login ID": login_id, "Temporary Password": password} for login_id, password in existing.items()])
         return
 
-    for user_id, (expected_login, env_name) in _SCOPED_RECOVERY_TARGETS.items():
-        temporary_password = os.getenv(env_name, "")
-        if not temporary_password:
-            continue
+    with st.form("psb_scoped_account_recovery"):
+        recovery_code = st.text_input("Recovery code", type="password")
+        submitted = st.form_submit_button("Generate temporary passwords for the three approved accounts")
 
+    if not submitted:
+        return
+
+    supplied_hash = hashlib.sha256(str(recovery_code or "").encode("utf-8")).hexdigest()
+    if not secrets.compare_digest(supplied_hash, _RECOVERY_CODE_SHA256):
+        st.error("Invalid recovery code.")
+        return
+
+    generated = {}
+    for user_id, login_key in _SCOPED_RECOVERY_TARGETS.items():
         rows = query_sql(
-            "select user_id, login_id, password_hash, force_password_change "
-            "from users where user_id = :uid and lower(login_id) = :login_key",
-            {"uid": user_id, "login_key": expected_login},
+            "select user_id, login_id, status from users "
+            "where user_id = :uid and lower(login_id) = :login_key",
+            {"uid": user_id, "login_key": login_key},
         )
-        if rows.empty:
-            continue
+        if rows.empty or str(rows.iloc[0].get("status", "")) != "Active":
+            st.error(f"Recovery stopped because the approved account {login_key} was not found as Active.")
+            return
 
-        row = rows.iloc[0]
-        if str(row.get("force_password_change", "No")) != "Yes":
-            continue
-
-        already_set, _ = verify_password(str(row.get("password_hash", "")), temporary_password)
-        if not already_set:
-            with system_write("owner-authorized scoped password recovery"):
-                db_update(
-                    "users",
-                    "user_id",
-                    user_id,
-                    {"password_hash": phash(temporary_password), "force_password_change": "Yes"},
-                )
-            exec_sql(
-                "update auth_sessions set revoked_on = coalesce(revoked_on, :ts) "
-                "where user_id = :uid and revoked_on is null",
-                {"ts": now(), "uid": user_id},
+    for user_id, login_key in _SCOPED_RECOVERY_TARGETS.items():
+        new_password = temp_password()
+        with system_write("owner-authorized short-lived account recovery"):
+            db_update(
+                "users",
+                "user_id",
+                user_id,
+                {"password_hash": phash(new_password), "force_password_change": "Yes"},
             )
-
-        # Remove only this target account's failed-login state.
         exec_sql(
             "delete from login_security_state where lower(login_key) = :login_key",
-            {"login_key": expected_login},
+            {"login_key": login_key},
         )
+        exec_sql(
+            "update auth_sessions set revoked_on = coalesce(revoked_on, :ts) "
+            "where user_id = :uid and revoked_on is null",
+            {"ts": now(), "uid": user_id},
+        )
+        generated[login_key] = new_password
+
+    st.session_state["psb_scoped_recovery_passwords"] = generated
+    st.success("Recovery completed for exactly three approved accounts.")
+    st.table([{"Login ID": login_id, "Temporary Password": password} for login_id, password in generated.items()])
 
 
 def main() -> None:
@@ -178,9 +188,11 @@ def main() -> None:
     apply_style()
     require_persistent_backend()
     init_db()
-    _apply_scoped_password_recovery()
     ensure_accreditation_schema()
     query_params = st.query_params
+    if str(query_params.get("account_recovery", "") or "").strip() == "1":
+        _scoped_recovery_page()
+        return
     public_cert = str(query_params.get("verify", "") or "").strip()
     if public_cert:
         public_qr_verify_page(public_cert)
