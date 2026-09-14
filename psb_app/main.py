@@ -113,7 +113,9 @@ def trainer_paths_training_page(actor):
     _trainer_paths_training_page(actor)
 
 def authorization_decisions_page(actor):
-    authorization_controlled_forms_panel(actor)
+    if not authorization_controlled_forms_panel(actor):
+        st.warning('Final authorization decision is locked until the required controlled PSB authorization form is completed/signed and linked as evidence for the selected case.')
+        return
     _authorization_decisions_page(actor)
 from core.view_context import set_context
 from core.production import page_execution as _page_execution
