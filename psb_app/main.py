@@ -72,7 +72,7 @@ from psb_app.pages.role_workspaces import (
     assigned_learners_page,
     assigned_trainees_page,
     audit_workspace_page,
-    certificates_page,
+    certificates_page as _certificates_page,
     crb_case_workspace_page,
     management_review_dashboard_page,
     my_audits_page,
@@ -104,8 +104,14 @@ from psb_app.pages.controlled_qms_forms import (
     learner_controlled_forms_panel, trainer_controlled_forms_panel, authorization_controlled_forms_panel,
 )
 from psb_app.services.qualification_progress import install_qualification_progress_patch
+from psb_app.services.training_certification import (
+    install_training_certification_patch,
+    trainer_course_control_panel,
+    certificate_center_addon,
+)
 
 install_qualification_progress_patch()
+install_training_certification_patch()
 
 
 def my_qualification_page(actor):
@@ -115,7 +121,13 @@ def my_qualification_page(actor):
 
 def trainer_paths_training_page(actor):
     trainer_controlled_forms_panel(actor)
+    trainer_course_control_panel(actor)
     _trainer_paths_training_page(actor)
+
+
+def certificates_page(actor):
+    certificate_center_addon(actor)
+    _certificates_page(actor)
 
 
 def authorization_decisions_page(actor):
