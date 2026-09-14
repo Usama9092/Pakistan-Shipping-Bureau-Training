@@ -56,7 +56,13 @@ def _forms_for(path_name: str, stage: str):
 
 
 def _form_bytes(row) -> bytes:
-    return base64.b64decode(str(row.get('template_base64') or ''))
+    raw = str(row.get('template_base64') or '').strip()
+    if not raw:
+        return b''
+    try:
+        return base64.b64decode(raw)
+    except Exception:
+        return b''
 
 
 def _link_table(form_code: str) -> str:
@@ -90,7 +96,7 @@ def _render_form(actor, row, linked_id: str, allow_upload: bool, key_prefix: str
                 use_container_width=True,
             )
         else:
-            st.error('The controlled blank template is missing from the form register.')
+            st.info(f"Controlled master registered as: {row.get('filename','')}. The workflow slot is active; QMS can upload a completed/signed XLSX or PDF as evidence below.")
         if existing.empty:
             st.warning('Completed / signed form has not yet been linked to this controlled record.')
         else:
