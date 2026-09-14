@@ -13,6 +13,21 @@ _PATH_BY_ID = {
 }
 
 
+def _canonical_path(value: str) -> str:
+    text = str(value or '').strip().casefold()
+    if not text:
+        return ''
+    if 'plan apprais' in text or 'plan approval' in text:
+        return 'Plan Appraiser'
+    if any(token in text for token in ['nsc', 'new building', 'new construction', 'hull nb', 'machinery nb', 'electrical nb']):
+        return 'NSC Surveyor'
+    if any(token in text for token in ['in-service', 'in service', 'existing ship', 'hull is', 'machinery is', 'electrical is', 'annual survey', 'intermediate survey', 'renewal survey', 'special survey', 'docking survey', 'bottom survey']):
+        return 'In-Service Surveyor'
+    if 'industrial' in text:
+        return 'Industrial Surveyor'
+    return str(value or '').strip()
+
+
 def _uid(actor) -> str:
     return str(actor_get(actor, 'user_id', '') or '')
 
@@ -34,7 +49,7 @@ def _forms_for(path_name: str, stage: str):
     forms = db_all('controlled_qms_forms')
     if forms.empty:
         return forms
-    path = str(path_name or '').strip().casefold()
+    path = _canonical_path(path_name).casefold()
     stage_cf = str(stage or '').strip().casefold()
     forms = forms[forms.get('active', pd.Series(dtype=str)).astype(str).str.casefold().isin(['yes', 'active', 'true', '1'])]
     stage_mask = forms.get('stages', pd.Series('', index=forms.index)).fillna('').astype(str).str.casefold().str.contains(stage_cf, regex=False)
@@ -216,12 +231,12 @@ def trainer_controlled_forms_panel(actor) -> None:
             _render_form(actor, row, linked_id, True, f'trainer_{path_name}_{user_id}')
 
 
-def authorization_controlled_forms_panel(actor) -> None:
+def authorization_controlled_forms_panel(actor) -> bool:
     if not table_exists('authorization_requests') or not table_exists('controlled_qms_forms'):
-        return
+        return True
     cases = db_where('authorization_requests', 'status = :status', (('status', 'CRB Recommended'),))
     if cases.empty:
-        return
+        return True
     st.markdown('### Mandatory Controlled Authorization Form')
     st.caption('Before final authorization, the applicable controlled PSB form should be completed/signed and linked to the same person and authorization scope.')
     labels, mapping = [], {}
@@ -232,16 +247,17 @@ def authorization_controlled_forms_panel(actor) -> None:
         mapping[label] = r.to_dict()
     selected = st.selectbox('Authorization case for controlled form', labels, key='authorization_controlled_case')
     row = mapping[selected]
-    path_name = str(row.get('scope') or row.get('trainee_path') or '')
+    path_name = _canonical_path(str(row.get('trainee_path') or row.get('job_type') or row.get('scope') or ''))
     form_list = _forms_for(path_name, 'authorization')
     if form_list.empty:
         st.info('No uploaded controlled authorization form is mapped to this authorization path.')
-        return
+        return True
     linked_id = _record_key(str(row.get('user_id', '')), path_name)
     completed = 0
     for _, form in form_list.iterrows():
         completed += int(_render_form(actor, form, linked_id, True, f'authcase_{row.get("authorization_id","")}'))
     if completed < len(form_list):
         st.error('Required controlled authorization form evidence is still missing for this case. Complete/sign and upload it before the final authorization decision.')
-    else:
-        st.success('Required controlled authorization form evidence is linked and available for the final decision review.')
+        return False
+    st.success('Required controlled authorization form evidence is linked and available for the final decision review.')
+    return True
