@@ -96,10 +96,25 @@ from psb_app.pages.gm import (
     gm_reports_page,
 )
 from psb_app.pages.qualification import (
-    my_qualification_page, my_development_page, trainer_paths_training_page,
-    department_qualification_page, people_capability_page, authorization_decisions_page,
+    my_qualification_page as _my_qualification_page, my_development_page, trainer_paths_training_page as _trainer_paths_training_page,
+    department_qualification_page, people_capability_page, authorization_decisions_page as _authorization_decisions_page,
     authorization_cases_page, my_authorization_cases_page, crb_cases_page,
 )
+from psb_app.pages.controlled_qms_forms import (
+    learner_controlled_forms_panel, trainer_controlled_forms_panel, authorization_controlled_forms_panel,
+)
+
+def my_qualification_page(actor):
+    learner_controlled_forms_panel(actor)
+    _my_qualification_page(actor)
+
+def trainer_paths_training_page(actor):
+    trainer_controlled_forms_panel(actor)
+    _trainer_paths_training_page(actor)
+
+def authorization_decisions_page(actor):
+    authorization_controlled_forms_panel(actor)
+    _authorization_decisions_page(actor)
 from core.view_context import set_context
 from core.production import page_execution as _page_execution
 
