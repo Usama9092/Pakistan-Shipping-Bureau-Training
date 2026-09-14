@@ -9,12 +9,14 @@ from psb_app.common import (
     os,
     pd,
     st,
+    table_exists,
     timedelta,
     uid,
 )
 from core.system_write import system_write
 
 QR_RATE_LIMIT = int(os.getenv("QR_RATE_LIMIT_PER_MINUTE", "30"))
+
 
 def _request_fingerprint() -> str:
     try:
@@ -25,6 +27,7 @@ def _request_fingerprint() -> str:
         raw = "unknown"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+
 def _qr_rate_limited(fingerprint: str) -> bool:
     try:
         window_start = (datetime.utcnow() - timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:%S")
@@ -32,6 +35,7 @@ def _qr_rate_limited(fingerprint: str) -> bool:
         return len(recent) >= QR_RATE_LIMIT
     except Exception:
         return True
+
 
 def _log_qr_event(cert_id: str, result: str, fingerprint: str, response_code: str, requested_path: str) -> None:
     try:
@@ -43,6 +47,7 @@ def _log_qr_event(cert_id: str, result: str, fingerprint: str, response_code: st
             })
     except Exception:
         pass
+
 
 def public_qr_verify_page(cert_id: str) -> None:
     cert_id = clean(cert_id)[:128]
@@ -56,30 +61,58 @@ def public_qr_verify_page(cert_id: str) -> None:
         _log_qr_event(cert_id, "RateLimited", fingerprint, "429", path)
         st.error("Too many verification attempts. Please try again later.")
         return
-    certs = db_where("authorization_certificates", "certificate_id = :cid", (("cid", cert_id),))
-    if certs.empty:
-        _log_qr_event(cert_id, "NotFound", fingerprint, "404", path)
+
+    auth = db_where("authorization_certificates", "certificate_id = :cid", (("cid", cert_id),))
+    if not auth.empty:
+        row = auth.iloc[0]
+        valid = str(row.get("status", "")).lower() == "valid" and days_until(row.get("expiry_date", "")) >= 0
+        _log_qr_event(cert_id, "Valid" if valid else "Invalid", fingerprint, "200", path)
         st.title("Pakistan Shipping Bureau")
-        st.caption("Certificate Verification")
-        st.error("Certificate not found.")
+        st.caption("Digital Authorization Certificate Verification · PSB-PTQ20-F02")
+        (st.success if valid else st.error)("Certificate is valid." if valid else "Certificate is expired, revoked, suspended, withdrawn, or otherwise invalid.")
+        c1, c2 = st.columns(2)
+        c1.metric("Certificate", str(row.get("certificate_id", cert_id)))
+        c2.metric("Status", "Valid" if valid else "Invalid")
+        public = {
+            "certificate_id": row.get("certificate_id", ""), "holder": row.get("name", ""),
+            "qualification_scope": row.get("scope", ""), "job_type": row.get("job_type", ""),
+            "issue_date": row.get("issue_date", ""), "expiry_date": row.get("expiry_date", ""),
+            "trainer": row.get("trainer_name", ""), "document": row.get("document_code", "PSB-PTQ20-F02"),
+            "status": "Valid" if valid else "Invalid",
+        }
+        st.dataframe(pd.DataFrame([public]), use_container_width=True, hide_index=True)
+        st.caption("This public endpoint shows verification information only; confidential PSB records are not exposed.")
         return
-    row = certs.iloc[0]
-    valid = str(row.get("status", "")).lower() == "valid" and days_until(row.get("expiry_date", "")) >= 0
-    _log_qr_event(cert_id, "Valid" if valid else "Invalid", fingerprint, "200", path)
+
+    att = pd.DataFrame()
+    if table_exists("training_attestation_certificates"):
+        att = db_where("training_attestation_certificates", "certificate_id = :cid", (("cid", cert_id),))
+    if not att.empty:
+        row = att.iloc[0]
+        valid = str(row.get("status", "")).lower() == "valid"
+        _log_qr_event(cert_id, "Valid" if valid else "Invalid", fingerprint, "200", path)
+        st.title("Pakistan Shipping Bureau")
+        st.caption("Training Course Attestation Verification · PSB-PTQ20-F03")
+        (st.success if valid else st.error)("Training attestation is valid." if valid else "Training attestation is invalid or withdrawn.")
+        c1, c2 = st.columns(2)
+        c1.metric("Certificate", str(row.get("certificate_id", cert_id)))
+        c2.metric("Status", "Valid" if valid else "Invalid")
+        public = {
+            "certificate_id": row.get("certificate_id", ""), "holder": row.get("name", ""),
+            "training": row.get("training_title", ""), "module_code": row.get("module_code", ""),
+            "module_name": row.get("module_name", ""), "conducted_on": row.get("conducted_on", ""),
+            "issue_date": row.get("issue_date", ""), "trainer": row.get("trainer_name", ""),
+            "document": row.get("document_code", "PSB-PTQ20-F03"), "status": "Valid" if valid else "Invalid",
+        }
+        st.dataframe(pd.DataFrame([public]), use_container_width=True, hide_index=True)
+        st.caption("This public endpoint confirms the digitally issued PSB training attestation only; confidential learner records and assessment content are not exposed.")
+        return
+
+    _log_qr_event(cert_id, "NotFound", fingerprint, "404", path)
     st.title("Pakistan Shipping Bureau")
     st.caption("Certificate Verification")
-    (st.success if valid else st.error)("Certificate is valid." if valid else "Certificate is expired, revoked, suspended, withdrawn, or otherwise invalid.")
-    c1, c2 = st.columns(2)
-    c1.metric("Certificate", str(row.get("certificate_id", cert_id)))
-    c2.metric("Status", "Valid" if valid else "Invalid")
-    public = {
-        "certificate_id": row.get("certificate_id", ""), "holder": row.get("name", ""),
-        "scope": row.get("scope", ""), "job_type": row.get("job_type", ""),
-        "issue_date": row.get("issue_date", ""), "expiry_date": row.get("expiry_date", ""),
-        "status": "Valid" if valid else "Invalid",
-    }
-    st.dataframe(pd.DataFrame([public]), use_container_width=True, hide_index=True)
-    st.caption("This public endpoint shows verification information only; confidential PSB records are not exposed.")
+    st.error("Certificate not found.")
+
 
 def qr_verify_page(actor):
     st.header("QR / Public Certificate Verification")
