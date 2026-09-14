@@ -103,22 +103,31 @@ from psb_app.pages.qualification import (
 from psb_app.pages.controlled_qms_forms import (
     learner_controlled_forms_panel, trainer_controlled_forms_panel, authorization_controlled_forms_panel,
 )
+from psb_app.services.qualification_progress import install_qualification_progress_patch
+
+install_qualification_progress_patch()
+
 
 def my_qualification_page(actor):
     learner_controlled_forms_panel(actor)
     _my_qualification_page(actor)
 
+
 def trainer_paths_training_page(actor):
     trainer_controlled_forms_panel(actor)
     _trainer_paths_training_page(actor)
+
 
 def authorization_decisions_page(actor):
     if not authorization_controlled_forms_panel(actor):
         st.warning('Final authorization decision is locked until the required controlled PSB authorization form is completed/signed and linked as evidence for the selected case.')
         return
     _authorization_decisions_page(actor)
+
+
 from core.view_context import set_context
 from core.production import page_execution as _page_execution
+
 
 def main() -> None:
     st.set_page_config(page_title=APP_TITLE, page_icon=str(LOGO_PATH) if LOGO_PATH.exists() else "⚓", layout="wide", initial_sidebar_state="expanded")
@@ -170,6 +179,7 @@ def main() -> None:
         logging.getLogger("psb.production").exception("unhandled_page_error request_id=%s page=%s", request_id, page)
         st.error(f"We could not load this page. Reference: {request_id}")
         st.info("Your data has not been intentionally changed. Please retry; if the problem continues, provide the reference to an administrator.")
+
 
 if __name__ == "__main__":
     main()
