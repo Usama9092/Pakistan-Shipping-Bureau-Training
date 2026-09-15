@@ -81,7 +81,7 @@ from psb_app.pages.role_workspaces import (
     probation_progress_page,
     probation_review_page,
 )
-from psb_app.pages.certificate_center import professional_certificate_center
+from psb_app.pages.certificate_center_fixed import professional_certificate_center
 from psb_app.pages.executive import management_executive_dashboard_page
 from psb_app.pages.gm import (
     gm_administration_page,
