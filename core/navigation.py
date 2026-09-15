@@ -4,8 +4,8 @@ from __future__ import annotations
 ROLE_NAVIGATION = {
     "GM": [("Capability", ["GM Capability", "CRB Cases", "Authorization Decisions", "Certificates"], "gm"), ("Account", ["GM Notifications"], "gm")],
     "Admin": [("Administration", ["Users & Roles", "Departments", "Authorization Decisions", "Certificates", "Permissions", "System Settings", "Audit Trail", "Backup & Recovery"], "admin")],
-    "Trainer": [("Qualification", ["Qualification Workspace"], "training")],
-    "Department Manager": [("Department", ["Department Qualification", "My Assessments", "Authorization Cases"], "training"), ("Reference", ["Knowledge Library"], "training")],
+    "Trainer": [("Qualification", ["Qualification Workspace", "My Certificates"], "training")],
+    "Department Manager": [("Department", ["Department Qualification", "My Assessments", "Authorization Cases", "My Certificates"], "training"), ("Reference", ["Knowledge Library"], "training")],
     "Surveyor": [("My Qualification", ["My Qualification", "My Assessments", "My Certificates"], "mywork"), ("Reference", ["Knowledge Library"], "training")],
     "NSC Surveyor": [("My Qualification", ["My Qualification", "My Assessments", "My Certificates"], "mywork"), ("Reference", ["Knowledge Library"], "training")],
     "In-Service Surveyor": [("My Qualification", ["My Qualification", "My Assessments", "My Certificates"], "mywork"), ("Reference", ["Knowledge Library"], "training")],
@@ -14,7 +14,7 @@ ROLE_NAVIGATION = {
     "Trainee": [("My Qualification", ["My Qualification", "My Development", "My Certificates"], "mywork"), ("Reference", ["Knowledge Library"], "training")],
     "On Probation": [("My Qualification", ["My Qualification", "My Development", "My Certificates"], "mywork"), ("Reference", ["Knowledge Library"], "training")],
     "Management": [("Executive", ["Executive Dashboard", "People & Capability", "CRB Cases", "Authorization Decisions", "Certificates"], "executive")],
-    "QMS Auditor": [("Quality", ["My Audits", "Audit Workspace", "Accreditation Readiness", "Knowledge Library"], "quality")],
-    "QMR": [("Quality", ["Management Review Dashboard", "Accreditation Readiness", "Knowledge Library"], "quality")],
-    "Rule Development Rep": [("Rules", ["Rule Development", "Interpretation Portal", "Knowledge Library"], "quality")],
+    "QMS Auditor": [("Quality", ["My Audits", "Audit Workspace", "Accreditation Readiness", "My Certificates", "Knowledge Library"], "quality")],
+    "QMR": [("Quality", ["Management Review Dashboard", "Accreditation Readiness", "My Certificates", "Knowledge Library"], "quality")],
+    "Rule Development Rep": [("Rules", ["Rule Development", "Interpretation Portal", "My Certificates", "Knowledge Library"], "quality")],
 }
