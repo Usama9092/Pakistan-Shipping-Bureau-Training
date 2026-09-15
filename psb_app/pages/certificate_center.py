@@ -18,8 +18,13 @@ from psb_app.services.certificate_service import build_certificate, build_traini
 
 
 def _enterprise_access(actor: dict) -> bool:
+    # Admin is always organization-wide for the Certificate Center. Other
+    # executive/governance roles continue to rely on the controlled permission
+    # model rather than receiving access merely from a role label.
+    role = clean(actor_get(actor, 'role'))
     return (
-        can_action(actor, 'Authorization', 'Manage', 'Organization-wide')
+        role == 'Admin'
+        or can_action(actor, 'Authorization', 'Manage', 'Organization-wide')
         or can_action(actor, 'Administration', 'Manage', 'Organization-wide')
     )
 
@@ -134,7 +139,7 @@ def _certificate_card(kind: str, row: dict, fields: list[tuple[str, str]]) -> No
         if valid else f"<span class='psb-cert-invalid'>{_esc(status)}</span>"
     )
     title = clean(row.get('name')) or 'Certificate Holder'
-    subtitle = clean(row.get('scope')) if kind == 'Authorization Certificate' else clean(row.get('training_title'))
+    subtitle = clean(row.get('scope')) if kind.startswith('Authorization') else clean(row.get('training_title'))
     cells = ''.join(
         f"<div class='psb-cert-field'><div class='psb-cert-label'>{_esc(label)}</div>"
         f"<div class='psb-cert-value'>{_esc(value)}</div></div>"
@@ -158,11 +163,9 @@ def _authorization_center(actor: dict, certs: pd.DataFrame) -> None:
     if certs.empty:
         st.info('No authorization certificates are available for your current scope.')
         return
-
     certs = certs.copy()
     if 'issue_date' in certs.columns:
         certs = certs.sort_values('issue_date', ascending=False)
-
     search = st.text_input(
         'Find authorization certificate',
         placeholder='Search by holder, scope or certificate ID',
@@ -178,17 +181,14 @@ def _authorization_center(actor: dict, certs: pd.DataFrame) -> None:
     if shown.empty:
         st.info('No authorization certificate matches the current search.')
         return
-
-    labels = []
-    label_to_id = {}
-    for _, row in shown.iterrows():
-        label = f"{clean(row.get('name'))} · {clean(row.get('scope'))} · {clean(row.get('certificate_id'))}"
+    labels, label_to_id = [], {}
+    for _, r in shown.iterrows():
+        label = f"{clean(r.get('name'))} · {clean(r.get('scope'))} · {clean(r.get('certificate_id'))}"
         labels.append(label)
-        label_to_id[label] = clean(row.get('certificate_id'))
+        label_to_id[label] = clean(r.get('certificate_id'))
     selected = st.selectbox('Authorization certificate', labels, key='professional_auth_certificate_select')
     certificate_id = label_to_id[selected]
     row = shown[shown['certificate_id'].astype(str).eq(certificate_id)].iloc[-1].to_dict()
-
     _certificate_card(
         'Authorization Certificate · PSB-PTQ20-F02',
         row,
@@ -203,17 +203,22 @@ def _authorization_center(actor: dict, certs: pd.DataFrame) -> None:
             ('Document / Revision', f"{clean(row.get('document_code')) or 'PSB-PTQ20-F02'} · Rev {clean(row.get('revision_no')) or '01'}"),
         ],
     )
-
-    modules = [x.strip(' •-\t') for x in clean(row.get('completed_modules')).replace(';', '\n').splitlines() if x.strip()]
+    modules = [
+        x.strip(' •-\t')
+        for x in clean(row.get('completed_modules')).replace(';', '\n').splitlines()
+        if x.strip()
+    ]
     if modules:
         st.markdown('#### Completed Qualification Modules')
         module_html = ''.join(f"<div>✓ {_esc(item)}</div>" for item in modules)
         st.markdown(f"<div class='psb-module-box'>{module_html}</div>", unsafe_allow_html=True)
-
     st.markdown('### Generated Certificate')
     st.caption('This is the controlled digital certificate attached to the record. Preview it here, then download the certificate below.')
     _, certificate_html, _ = build_certificate(pd.Series(row))
-    components.html(certificate_html, height=980, scrolling=True)
+    # A4 portrait is approximately 1123 CSS px at 96 dpi. Use a full-height
+    # preview so both handwritten signature blocks are visible without having
+    # to scroll inside the embedded certificate frame.
+    components.html(certificate_html, height=1180, scrolling=True)
     b1, b2 = st.columns(2)
     b1.download_button(
         'Download Authorization Certificate',
@@ -226,7 +231,6 @@ def _authorization_center(actor: dict, certs: pd.DataFrame) -> None:
     verification_url = clean(row.get('verification_url'))
     if verification_url:
         b2.link_button('Verify Certificate', verification_url, use_container_width=True)
-
     if table_exists('authorization_certificate_history'):
         history = db_where('authorization_certificate_history', 'certificate_id = :cid', (('cid', certificate_id),))
         if not history.empty:
@@ -248,11 +252,9 @@ def _attestation_center(actor: dict, certs: pd.DataFrame) -> None:
     if certs.empty:
         st.info('No training attestation certificates are available for your current scope.')
         return
-
     certs = certs.copy()
     if 'issue_date' in certs.columns:
         certs = certs.sort_values('issue_date', ascending=False)
-
     search = st.text_input(
         'Find training attestation',
         placeholder='Search by holder, training, module or certificate ID',
@@ -268,18 +270,15 @@ def _attestation_center(actor: dict, certs: pd.DataFrame) -> None:
     if shown.empty:
         st.info('No training attestation matches the current search.')
         return
-
-    labels = []
-    label_to_id = {}
-    for _, row in shown.iterrows():
-        module = clean(row.get('module_code')) or clean(row.get('training_title'))
-        label = f"{clean(row.get('name'))} · {module} · {clean(row.get('certificate_id'))}"
+    labels, label_to_id = [], {}
+    for _, r in shown.iterrows():
+        module = clean(r.get('module_code')) or clean(r.get('training_title'))
+        label = f"{clean(r.get('name'))} · {module} · {clean(r.get('certificate_id'))}"
         labels.append(label)
-        label_to_id[label] = clean(row.get('certificate_id'))
+        label_to_id[label] = clean(r.get('certificate_id'))
     selected = st.selectbox('Training attestation certificate', labels, key='professional_attestation_select')
     certificate_id = label_to_id[selected]
     row = shown[shown['certificate_id'].astype(str).eq(certificate_id)].iloc[-1].to_dict()
-
     _certificate_card(
         'Training Course Attestation · PSB-PTQ20-F03',
         row,
@@ -294,16 +293,14 @@ def _attestation_center(actor: dict, certs: pd.DataFrame) -> None:
             ('Document / Revision', f"{clean(row.get('document_code')) or 'PSB-PTQ20-F03'} · Rev {clean(row.get('revision_no')) or '01'}"),
         ],
     )
-
     basis = clean(row.get('completion_basis'))
     if basis:
         st.markdown('#### Completion Basis')
         st.info(basis)
-
     st.markdown('### Generated Certificate')
     st.caption('The generated PSB training attestation is attached below. Preview it and download the controlled digital copy when required.')
     certificate_html, _ = build_training_attestation(pd.Series(row))
-    components.html(certificate_html, height=980, scrolling=True)
+    components.html(certificate_html, height=1180, scrolling=True)
     b1, b2 = st.columns(2)
     b1.download_button(
         'Download Training Attestation',
@@ -323,19 +320,22 @@ def professional_certificate_center(actor: dict) -> None:
     enterprise = _enterprise_access(actor)
     actor_id = clean(actor_get(actor, 'user_id'))
     role = clean(actor_get(actor, 'role'))
-
     auth_certs = db_all('authorization_certificates') if table_exists('authorization_certificates') else pd.DataFrame()
     attestations = db_all('training_attestation_certificates') if table_exists('training_attestation_certificates') else pd.DataFrame()
-
     if not enterprise:
         if not auth_certs.empty:
-            auth_certs = auth_certs[auth_certs.get('user_id', pd.Series('', index=auth_certs.index)).astype(str).eq(actor_id)]
+            auth_certs = auth_certs[
+                auth_certs.get('user_id', pd.Series('', index=auth_certs.index)).astype(str).eq(actor_id)
+            ]
         if not attestations.empty:
             if role == 'Trainer':
-                attestations = attestations[attestations.get('trainer_id', pd.Series('', index=attestations.index)).astype(str).eq(actor_id)]
+                attestations = attestations[
+                    attestations.get('trainer_id', pd.Series('', index=attestations.index)).astype(str).eq(actor_id)
+                ]
             else:
-                attestations = attestations[attestations.get('user_id', pd.Series('', index=attestations.index)).astype(str).eq(actor_id)]
-
+                attestations = attestations[
+                    attestations.get('user_id', pd.Series('', index=attestations.index)).astype(str).eq(actor_id)
+                ]
     active_auth = 0
     expiring_auth = 0
     if not auth_certs.empty:
@@ -344,20 +344,18 @@ def professional_certificate_center(actor: dict) -> None:
         active_mask = status.eq('valid') & (expiry_days >= 0)
         active_auth = int(active_mask.sum())
         expiring_auth = int((active_mask & (expiry_days <= 90)).sum())
-
     valid_attestations = 0
     if not attestations.empty:
-        valid_attestations = int(attestations.get('status', pd.Series('', index=attestations.index)).astype(str).str.casefold().eq('valid').sum())
-
+        valid_attestations = int(
+            attestations.get('status', pd.Series('', index=attestations.index)).astype(str).str.casefold().eq('valid').sum()
+        )
     st.header('Certificate Center' if enterprise else 'My Certificates')
     st.caption('Controlled PSB certificates presented as individual digital records with preview, verification and one-click download. No spreadsheet-style certificate register is shown here.')
-
     m1, m2, m3, m4 = st.columns(4)
     m1.metric('Authorization Certificates', len(auth_certs))
     m2.metric('Active Authorizations', active_auth)
     m3.metric('Training Attestations', valid_attestations)
     m4.metric('Expiring ≤90 Days', expiring_auth)
-
     tab_auth, tab_att = st.tabs(['Authorization Certificates', 'Training Attestations'])
     with tab_auth:
         _authorization_center(actor, auth_certs)
