@@ -72,7 +72,6 @@ from psb_app.pages.role_workspaces import (
     assigned_learners_page,
     assigned_trainees_page,
     audit_workspace_page,
-    certificates_page as _certificates_page,
     crb_case_workspace_page,
     management_review_dashboard_page,
     my_audits_page,
@@ -82,6 +81,7 @@ from psb_app.pages.role_workspaces import (
     probation_progress_page,
     probation_review_page,
 )
+from psb_app.pages.certificate_center import professional_certificate_center
 from psb_app.pages.executive import management_executive_dashboard_page
 from psb_app.pages.gm import (
     gm_administration_page,
@@ -107,7 +107,6 @@ from psb_app.services.qualification_progress import install_qualification_progre
 from psb_app.services.training_certification import (
     install_training_certification_patch,
     trainer_course_control_panel,
-    certificate_center_addon,
 )
 from psb_app.services.admin_authorization_recognition import (
     install_admin_authorization_recognition_patch,
@@ -131,8 +130,7 @@ def trainer_paths_training_page(actor):
 
 
 def certificates_page(actor):
-    certificate_center_addon(actor)
-    _certificates_page(actor)
+    professional_certificate_center(actor)
 
 
 def authorization_decisions_page(actor):
