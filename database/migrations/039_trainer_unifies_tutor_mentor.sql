@@ -1,6 +1,8 @@
 -- PSB: Trainer is the single qualification, mentoring and development role.
 -- Tutor/Mentor is retired as an account role. Legacy tutor/mentor columns are retained
 -- only as compatibility aliases so historical records and old reports remain readable.
+-- Migration bookkeeping is owned by core/migrations.py; this file must not insert
+-- directly into schema_migrations because that table requires a checksum.
 
 update public.users
 set role = 'Trainer'
@@ -51,7 +53,3 @@ where status='Tutor Recommended';
 update public.roles
 set status='Retired', updated_on=now()::text
 where role_name='Tutor/Mentor';
-
-insert into public.schema_migrations(version, applied_on)
-select '039', now()::text
-where not exists (select 1 from public.schema_migrations where version='039');
