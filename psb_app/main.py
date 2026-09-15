@@ -109,9 +109,14 @@ from psb_app.services.training_certification import (
     trainer_course_control_panel,
     certificate_center_addon,
 )
+from psb_app.services.admin_authorization_recognition import (
+    install_admin_authorization_recognition_patch,
+    admin_existing_authorization_panel,
+)
 
 install_qualification_progress_patch()
 install_training_certification_patch()
+install_admin_authorization_recognition_patch()
 
 
 def my_qualification_page(actor):
@@ -131,6 +136,7 @@ def certificates_page(actor):
 
 
 def authorization_decisions_page(actor):
+    admin_existing_authorization_panel(actor)
     if not authorization_controlled_forms_panel(actor):
         st.warning('Final authorization decision is locked until the required controlled PSB authorization form is completed/signed and linked as evidence for the selected case.')
         return
