@@ -16,5 +16,8 @@ _app.apply_style = _professional_style
 
 
 if __name__ == "__main__":
+    # Ensure the persistent schema is ready before the one-time controlled
+    # curriculum publisher inspects Draft courses.
+    _app.init_db()
     prepare_and_publish_source_backed_curriculum()
     _app.main()
