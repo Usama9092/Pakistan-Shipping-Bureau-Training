@@ -56,36 +56,49 @@ def _render_video(url: str, title: str) -> None:
     st.components.v1.html(html, height=430, scrolling=False)
 
 
+def _render_external_video(url: str) -> None:
+    value = clean(url)
+    lower = value.lower()
+    if not value:
+        return
+    if "youtube.com/" in lower or "youtu.be/" in lower or "vimeo.com/" in lower or lower.endswith(".mp4"):
+        st.markdown("### Training Video")
+        st.caption("Streamed by the external video provider; it does not consume Render application memory or bandwidth.")
+        st.video(value)
+
+
 def trainee_training_with_private_stream(actor, training_id: str) -> None:
     user_id = clean(actor_get(actor, "user_id", ""))
     tr = tc._training(training_id)
     rec = tc._record(user_id, training_id) if user_id else {}
     sequence_ok, _ = tc._sequence_gate(user_id, training_id) if user_id else (False, [])
 
-    videos = _private_video_resources(training_id)
-    if tr and rec and sequence_ok and clean(tr.get("content_status")) == "Published" and not videos.empty:
-        st.markdown("### Private Streaming Video")
-        st.caption("Video is streamed from private object storage so it does not consume Render application memory or application bandwidth.")
-        videos = videos.sort_values("sequence_no") if "sequence_no" in videos.columns else videos
-        for _, resource in videos.iterrows():
-            resource_dict = resource.to_dict()
-            rid = clean(resource_dict.get("resource_id"))
-            file_row = _video_file(resource_dict)
-            title = clean(resource_dict.get("title")) or clean(file_row.get("file_name")) or "Training Video"
-            if not file_row:
-                st.warning(f"Private video source is not available: {title}")
-                continue
-            signed_url = secure_file_url(file_row)
-            if not signed_url:
-                st.warning(f"Unable to create secure streaming access for: {title}")
-                continue
-            _render_video(signed_url, title)
-            if tc._progress_done(user_id, training_id, "Resource", rid):
-                st.success("Video viewing acknowledgement recorded.")
-            elif st.button("I have viewed this training video", key=f"private_video_done_{training_id}_{rid}"):
-                tc._mark_progress(user_id, training_id, "Resource", rid)
-                tc.sync_training_record(user_id, training_id)
-                st.rerun()
+    if tr and rec and sequence_ok and clean(tr.get("content_status")) == "Published":
+        _render_external_video(clean(tr.get("video_link")))
+        videos = _private_video_resources(training_id)
+        if not videos.empty:
+            st.markdown("### Private Streaming Video")
+            st.caption("Video is streamed from private object storage so it does not consume Render application memory or application bandwidth.")
+            videos = videos.sort_values("sequence_no") if "sequence_no" in videos.columns else videos
+            for _, resource in videos.iterrows():
+                resource_dict = resource.to_dict()
+                rid = clean(resource_dict.get("resource_id"))
+                file_row = _video_file(resource_dict)
+                title = clean(resource_dict.get("title")) or clean(file_row.get("file_name")) or "Training Video"
+                if not file_row:
+                    st.warning(f"Private video source is not available: {title}")
+                    continue
+                signed_url = secure_file_url(file_row)
+                if not signed_url:
+                    st.warning(f"Unable to create secure streaming access for: {title}")
+                    continue
+                _render_video(signed_url, title)
+                if tc._progress_done(user_id, training_id, "Resource", rid):
+                    st.success("Video viewing acknowledgement recorded.")
+                elif st.button("I have viewed this training video", key=f"private_video_done_{training_id}_{rid}"):
+                    tc._mark_progress(user_id, training_id, "Resource", rid)
+                    tc.sync_training_record(user_id, training_id)
+                    st.rerun()
 
     _ORIGINAL_TRAINEE_TRAINING(actor, training_id)
 
