@@ -112,6 +112,7 @@ from psb_app.services.admin_authorization_recognition import (
     install_admin_authorization_recognition_patch,
     admin_existing_authorization_panel,
 )
+from psb_app.services.auto_qualification_enrollment import ensure_auto_qualification_enrollment
 
 install_qualification_progress_patch()
 install_training_certification_patch()
@@ -153,6 +154,15 @@ def main() -> None:
     require_persistent_backend()
     init_db()
     ensure_accreditation_schema()
+    # Direct technical roles with an already-assigned active Trainer are enrolled
+    # into their predefined qualification path automatically. The helper is
+    # conservative: it never replaces an existing active path and never guesses
+    # a Trainer.
+    try:
+        ensure_auto_qualification_enrollment()
+    except Exception:
+        import logging
+        logging.getLogger("psb.qualification").exception("automatic qualification enrollment check failed")
     query_params = st.query_params
     public_cert = str(query_params.get("verify", "") or "").strip()
     if public_cert:
