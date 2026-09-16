@@ -1,4 +1,5 @@
 import psb_app.main as _app
+import psb_app.private_video_streaming  # noqa: F401
 from psb_app.professional_theme import apply_professional_theme
 
 
