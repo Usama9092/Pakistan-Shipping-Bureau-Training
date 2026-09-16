@@ -11,6 +11,9 @@ def install_qualification_progress_patch() -> None:
 
     This patch keeps the existing practical controls unchanged in principle while
     allowing theory-only modules to complete on their controlled theory gate.
+    Administratively recognized legacy completions are preserved so a later
+    curriculum enhancement cannot reopen or invalidate an already-recognized
+    qualification/certificate.
     """
     from psb_app.pages import qualification as q
 
@@ -50,7 +53,42 @@ def install_qualification_progress_patch() -> None:
                 snapshot,
             )
 
+    def _recognized_snapshot(user_id: str, module_id: str) -> dict | None:
+        """Return a locked-complete snapshot for controlled legacy recognition."""
+        if not q.table_exists('qualification_module_progress'):
+            return None
+        existing = q.db_where(
+            'qualification_module_progress',
+            'user_id = :uid AND module_id = :mid',
+            (('uid', user_id), ('mid', module_id)),
+        )
+        if existing.empty:
+            return None
+        row = existing.iloc[-1]
+        recognized = str(row.get('administrative_recognition') or '').strip().casefold() in {'yes', 'true', '1'}
+        already_complete = str(row.get('module_status') or '').strip() == 'Complete'
+        if not (recognized and already_complete):
+            return None
+        return {
+            'theory_status': 'Complete',
+            'guided_practical_status': str(row.get('guided_practical_status') or 'Administratively Recognized'),
+            'trainer_gate_status': str(row.get('trainer_gate_status') or 'Administratively Recognized'),
+            'independent_practical_status': str(row.get('independent_practical_status') or 'Administratively Recognized'),
+            'competency_status': str(row.get('competency_status') or 'Administratively Recognized'),
+            'module_status': 'Complete',
+            'completion_percent': 100,
+            'completed_on': str(row.get('completed_on') or q.now()),
+            'updated_on': str(row.get('updated_on') or q.now()),
+            'administrative_recognition': 'Yes',
+            'recognition_id': str(row.get('recognition_id') or ''),
+            'recognition_basis': str(row.get('recognition_basis') or 'Controlled administrative recognition of existing qualification'),
+        }
+
     def _sync_module_progress(user_id: str, module_id: str, assignment_id: str = '') -> dict:
+        recognized = _recognized_snapshot(user_id, module_id)
+        if recognized is not None:
+            return recognized
+
         module_df = q.db_where('qualification_modules', 'module_id = :mid', (('mid', module_id),))
         module = module_df.iloc[-1].to_dict() if not module_df.empty else {}
         module_type = str(module.get('module_type') or '').strip()
