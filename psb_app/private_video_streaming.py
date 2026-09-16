@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from html import escape
 
-from psb_app.common import clean, db_where, pd, secure_file_url, st, table_exists
+from psb_app.common import actor_get, clean, db_where, pd, secure_file_url, st, table_exists
 from psb_app.services import training_certification as tc
 from psb_app.pages import training as training_page
 
@@ -57,7 +57,7 @@ def _render_video(url: str, title: str) -> None:
 
 
 def trainee_training_with_private_stream(actor, training_id: str) -> None:
-    user_id = clean(actor.get("user_id") if isinstance(actor, dict) else "")
+    user_id = clean(actor_get(actor, "user_id", ""))
     tr = tc._training(training_id)
     rec = tc._record(user_id, training_id) if user_id else {}
     sequence_ok, _ = tc._sequence_gate(user_id, training_id) if user_id else (False, [])
@@ -91,7 +91,6 @@ def trainee_training_with_private_stream(actor, training_id: str) -> None:
 
 
 def install_private_video_streaming() -> None:
-    # Patch both the page-level callable used at runtime and the service symbol.
     training_page.trainee_training = trainee_training_with_private_stream
     tc.enhanced_trainee_training = trainee_training_with_private_stream
 
