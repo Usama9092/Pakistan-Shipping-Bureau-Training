@@ -266,13 +266,32 @@ def db_count(table: str, where_sql: str='', params_tuple: tuple[tuple[str, objec
     except Exception:
         return 0
 
+def _scope_user_departments(table: str, frame: pd.DataFrame) -> pd.DataFrame:
+    """Load normalized department memberships without breaking all scoped reads.
+
+    Older production databases can be missing this optional normalization table
+    even when the baseline migration was recorded as applied.  Primary-department
+    and direct Trainer relationships remain available on ``users`` and are the
+    canonical fallback until the repair migration creates the table.
+    """
+    if table == 'user_departments':
+        return frame
+    try:
+        return db_all_unscoped('user_departments')
+    except Exception as exc:
+        logging.getLogger('psb').warning(
+            'scope normalization table unavailable table=user_departments error=%s',
+            type(exc).__name__,
+        )
+        return pd.DataFrame(columns=['user_id', 'department', 'status'])
+
 def db_all(table: str) -> pd.DataFrame:
     try:
         frame = db_all_unscoped(table)
         actor = st.session_state.get('user') if hasattr(st, 'session_state') else None
         if actor and _scope_table_for_read(table) and not frame.empty:
             users = db_all_unscoped('users')
-            uds = db_all_unscoped('user_departments') if table != 'user_departments' else frame
+            uds = _scope_user_departments(table, frame)
             
             from core.access_policy import filter_frame
             return filter_frame(frame, actor, users, uds)
@@ -286,7 +305,7 @@ def db_where(table: str, where_sql: str, params_tuple: tuple[tuple[str, object],
         actor = st.session_state.get('user') if hasattr(st, 'session_state') else None
         if actor and _scope_table_for_read(table) and not frame.empty:
             users = db_all_unscoped('users')
-            uds = db_all_unscoped('user_departments') if table != 'user_departments' else frame
+            uds = _scope_user_departments(table, frame)
             
             from core.access_policy import filter_frame
             return filter_frame(frame, actor, users, uds)

@@ -92,6 +92,26 @@ def test_scoped_database_reads_are_not_shared_across_streamlit_sessions():
     assert 'db_where_unscoped.clear()' in clear_section
 
 
+def test_missing_normalized_departments_cannot_blank_all_scoped_reads():
+    runtime = (ROOT / 'psb_app/legacy_runtime.py').read_text(encoding='utf-8')
+    helper = runtime.split('def _scope_user_departments', 1)[1].split('def db_all(', 1)[0]
+    assert "db_all_unscoped('user_departments')" in helper
+    assert "pd.DataFrame(columns=['user_id', 'department', 'status'])" in helper
+    assert 'uds = _scope_user_departments(table, frame)' in runtime
+
+
+def test_scope_normalization_repair_and_qualification_indexes_are_present():
+    migration = (ROOT / 'database/migrations/058_scope_normalization_and_qualification_indexes.sql').read_text(encoding='utf-8').lower()
+    assert 'create table if not exists public.user_departments' in migration
+    assert 'revoke all on table public.user_departments from anon, authenticated' in migration
+    assert 'users_trainer_active_idx' in migration
+    assert 'qualification_path_versions_active_idx' in migration
+    assert 'qualification_path_levels_version_active_idx' in migration
+    assert 'qualification_module_progress_assignment_idx' in migration
+    assert 'training_live_sessions_trainer_schedule_idx' in migration
+    assert 'grant ' not in migration
+
+
 def test_qualification_baseline_repair_is_idempotent_and_scope_limited():
     migration = (ROOT / 'database/migrations/056_trainer_qualification_baseline_repair.sql').read_text(encoding='utf-8').lower()
     assert "('qp-nsc'" in migration and "('qp-is'" in migration
