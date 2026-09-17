@@ -104,6 +104,17 @@ def test_qualification_baseline_repair_is_idempotent_and_scope_limited():
     assert 'grant ' not in migration
 
 
+def test_industrial_curriculum_is_complete_and_source_gated():
+    migration = (ROOT / 'database/migrations/057_industrial_survey_curriculum.sql').read_text(encoding='utf-8').lower()
+    for module_code in ('ind-qa', 'ind-mat-weld', 'ind-nde-test', 'ind-qa-ojt', 'ind-mat-ojt', 'ind-nde-ojt', 'ind-fat-ojt'):
+        assert module_code in migration
+    assert migration.count("'guided practical'") >= 2
+    assert migration.count("'independent practical'") >= 2
+    assert "'draft',10" in migration
+    assert "meeting_link" in migration
+    assert 'grant ' not in migration
+
+
 def test_administration_master_repair_migration_is_additive():
     migration = (ROOT / 'database/migrations/048_administration_master_repair.sql').read_text(encoding='utf-8').lower()
     for table in ['roles', 'permissions', 'role_permissions', 'user_permission_overrides', 'system_settings']:
