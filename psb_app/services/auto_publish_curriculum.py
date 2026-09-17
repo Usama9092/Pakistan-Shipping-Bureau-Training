@@ -184,10 +184,19 @@ def prepare_and_publish_source_backed_curriculum() -> dict:
             exec_sql("update trainings set status='Archived',content_status='Archived',enrollment_open='No',updated_on=:now where training_id=:tid", {'now':now_value,'tid':tid})
             continue
 
+        # A newly scaffolded controlled course has no publishable content until
+        # the Trainer uploads a document/resource or records an approved link.
+        # Skip it before per-course database queries; otherwise a curriculum
+        # import with many Draft placeholders makes the first login needlessly
+        # wait on two or more network round trips per course.
+        learning_items = _learning_item_count(tr, tid, files, resources)
+        source = _course_source(tid, files)
+        if learning_items == 0 and not source:
+            continue
+
         current = query_sql('select question_id,question from question_bank where training_id=:tid', {'tid':tid})
         minimum = int(tr.get('minimum_mcqs') or 5)
         target = max(minimum, 10)
-        source = _course_source(tid, files)
         if len(current) < minimum and len(source) >= 500:
             existing = set(current['question'].astype(str).str.strip().tolist()) if not current.empty else set()
             for q in _generate_grounded_mcqs(tid, source, target):
@@ -203,7 +212,6 @@ def prepare_and_publish_source_backed_curriculum() -> dict:
                 questions_added += 1
 
         q_count = int(query_sql('select count(*) n from question_bank where training_id=:tid', {'tid':tid}).iloc[0]['n'])
-        learning_items = _learning_item_count(tr, tid, files, resources)
         assessment_required = _clean(tr.get('assessment_required') or 'Yes') == 'Yes'
         ready = learning_items > 0 and ((not assessment_required) or q_count >= minimum)
         if not ready:

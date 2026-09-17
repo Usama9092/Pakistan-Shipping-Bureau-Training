@@ -115,6 +115,14 @@ def test_industrial_curriculum_is_complete_and_source_gated():
     assert 'grant ' not in migration
 
 
+def test_draft_courses_without_sources_skip_per_course_queries():
+    source = (ROOT / 'psb_app/services/auto_publish_curriculum.py').read_text(encoding='utf-8')
+    loop = source.split('for _, tr_row in drafts.iterrows():', 1)[1]
+    skip = loop.index('if learning_items == 0 and not source:')
+    question_query = loop.index("select question_id,question from question_bank")
+    assert skip < question_query
+
+
 def test_administration_master_repair_migration_is_additive():
     migration = (ROOT / 'database/migrations/048_administration_master_repair.sql').read_text(encoding='utf-8').lower()
     for table in ['roles', 'permissions', 'role_permissions', 'user_permission_overrides', 'system_settings']:
