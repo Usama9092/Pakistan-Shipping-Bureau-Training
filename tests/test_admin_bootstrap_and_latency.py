@@ -81,6 +81,29 @@ def test_role_permission_baseline_avoids_per_grant_database_queries():
     assert "db_insert_many('role_permissions', missing_rows)" in section
 
 
+def test_scoped_database_reads_are_not_shared_across_streamlit_sessions():
+    runtime = (ROOT / 'psb_app/legacy_runtime.py').read_text(encoding='utf-8')
+    assert "@st.cache_data(ttl=20, show_spinner=False)\ndef db_all_unscoped" in runtime
+    assert "@st.cache_data(ttl=20, show_spinner=False)\ndef db_where_unscoped" in runtime
+    assert "@st.cache_data(ttl=20, show_spinner=False)\ndef db_all(" not in runtime
+    assert "@st.cache_data(ttl=20, show_spinner=False)\ndef db_where(" not in runtime
+    clear_section = runtime.split('def clear_db_cache', 1)[1].split('REPOSITORY =', 1)[0]
+    assert 'db_all_unscoped.clear()' in clear_section
+    assert 'db_where_unscoped.clear()' in clear_section
+
+
+def test_qualification_baseline_repair_is_idempotent_and_scope_limited():
+    migration = (ROOT / 'database/migrations/056_trainer_qualification_baseline_repair.sql').read_text(encoding='utf-8').lower()
+    assert "('qp-nsc'" in migration and "('qp-is'" in migration
+    assert "('qp-ind'" in migration and "('qp-pa'" in migration
+    assert "('qpv-nsc-1'" in migration and "'1.0', 'active'" in migration
+    assert "p.module_name = 'training'" in migration
+    assert "p.scope = 'assigned'" in migration
+    assert "rp.role_name = 'trainer'" in migration
+    assert "on conflict (path_id, version_no) do update" in migration
+    assert 'grant ' not in migration
+
+
 def test_administration_master_repair_migration_is_additive():
     migration = (ROOT / 'database/migrations/048_administration_master_repair.sql').read_text(encoding='utf-8').lower()
     for table in ['roles', 'permissions', 'role_permissions', 'user_permission_overrides', 'system_settings']:

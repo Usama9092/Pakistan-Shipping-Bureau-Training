@@ -248,10 +248,12 @@ def _scope_table_for_read(table: str) -> bool:
     except Exception:
         return False
 
+@st.cache_data(ttl=20, show_spinner=False)
 def db_all_unscoped(table: str) -> pd.DataFrame:
     validate_table_name(table)
     return REPOSITORY.select_all(table)
 
+@st.cache_data(ttl=20, show_spinner=False)
 def db_where_unscoped(table: str, where_sql: str, params_tuple: tuple[tuple[str, object], ...]=()) -> pd.DataFrame:
     validate_table_name(table)
     return REPOSITORY.select_where(table, where_sql, dict(params_tuple))
@@ -264,7 +266,6 @@ def db_count(table: str, where_sql: str='', params_tuple: tuple[tuple[str, objec
     except Exception:
         return 0
 
-@st.cache_data(ttl=20, show_spinner=False)
 def db_all(table: str) -> pd.DataFrame:
     try:
         frame = db_all_unscoped(table)
@@ -279,7 +280,6 @@ def db_all(table: str) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
-@st.cache_data(ttl=20, show_spinner=False)
 def db_where(table: str, where_sql: str, params_tuple: tuple[tuple[str, object], ...]=()) -> pd.DataFrame:
     try:
         frame = db_where_unscoped(table, where_sql, params_tuple)
@@ -300,8 +300,8 @@ def clear_db_cache() -> None:
     freeze the app after inserts/updates/deletes.
     """
     try:
-        db_all.clear()
-        db_where.clear()
+        db_all_unscoped.clear()
+        db_where_unscoped.clear()
         db_count.clear()
     except Exception:
         pass
