@@ -29,6 +29,12 @@ def test_private_storage_and_upload_hardening():
     assert "if not RATE_LIMITER.allowed('upload'" in segment
     assert "except Exception:\n        pass" not in segment.split("if not RATE_LIMITER.allowed('upload'",1)[0][-160:]
 
+def test_controlled_google_drive_material_urls_are_available_without_open_redirects():
+    src=read('psb_app/legacy_runtime.py')
+    assert "provider.casefold() == 'google drive'" in src
+    assert "{'drive.google.com', 'docs.google.com'}" in src
+    assert "parsed.scheme == 'https'" in src
+
 def test_security_controls_are_enforced_not_cosmetic():
     ui=read('psb_app/pages/auth_ui.py')
     for token in ['_persistent_login_state','_record_login_failure','_password_expired','_mfa_required','_verify_totp','_encrypt_mfa_secret']:

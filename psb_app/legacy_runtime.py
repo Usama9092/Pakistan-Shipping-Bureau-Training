@@ -3,7 +3,7 @@ import logging
 from datetime import date, datetime, timedelta
 import time
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 import base64
 import hashlib
 import io
@@ -491,6 +491,7 @@ def secure_file_url(file_row: dict, expires_seconds: int = 600) -> str:
     """
     provider = clean((file_row or {}).get('storage_provider'))
     path = clean((file_row or {}).get('storage_path'))
+    public_url = clean((file_row or {}).get('public_url'))
     if provider == 'supabase' and path:
         client = get_supabase_client()
         if client is None:
@@ -499,6 +500,13 @@ def secure_file_url(file_row: dict, expires_seconds: int = 600) -> str:
             result = client.storage.from_(SUPABASE_BUCKET).create_signed_url(path, max(60, min(int(expires_seconds), 900)))
             if isinstance(result, dict):
                 return clean(result.get('signedURL') or result.get('signedUrl') or result.get('signed_url'))
+        except Exception:
+            return ''
+    if provider.casefold() == 'google drive' and public_url:
+        try:
+            parsed = urlparse(public_url)
+            if parsed.scheme == 'https' and (parsed.hostname or '').casefold() in {'drive.google.com', 'docs.google.com'}:
+                return public_url
         except Exception:
             return ''
     return ''
